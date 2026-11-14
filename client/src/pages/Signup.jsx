@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 
 export default function Signup() {
@@ -75,7 +76,9 @@ export default function Signup() {
 
         <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <a href="/login" className="text-blue-600 font-medium">Log in</a>
+          <Link to="/login" className="text-blue-600 font-medium">
+            Log in
+          </Link>
         </p>
       </div>
     </div>
