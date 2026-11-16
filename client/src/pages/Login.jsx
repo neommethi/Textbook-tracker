@@ -58,7 +58,7 @@ export default function Login() {
 
         <p className="mt-4 text-center text-sm text-gray-600">
           No account yet?{' '}
-          <Link to="/signup" className="text-blue-600 font-medium">
+          <Link to="/signup" className="text-yellow-600 font-medium">
             Sign up
         </Link>
         </p>

@@ -1,8 +1,8 @@
 // Show one textbook and whether it has been returned.
 export default function TextbookRow({ textbook }) {
   const statusStyles = textbook.returned
-    ? 'bg-green-100 text-green-800'
-    : 'bg-amber-100 text-amber-800'
+    ? 'bg-blue-100 text-blue-800'
+    : 'bg-yellow-100 text-yellow-800'
 
   return (
     <li className="flex items-center justify-between gap-3 border-t border-slate-100 py-3">
