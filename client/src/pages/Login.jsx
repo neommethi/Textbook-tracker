@@ -1,14 +1,37 @@
-import { Link } from 'react-router-dom'
 import { useState } from 'react'
-
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Login() {
+  const navigate = useNavigate()
+  const API = 'http://localhost:3000'
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    console.log('Login submitted for', email)
+    setError('')
+
+    try {
+      const res = await fetch(`${API}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.')
+        return
+      }
+
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+    navigate(data.user.role === 'admin' ? '/admin' : '/student-dashboard')
+    } catch {
+      setError('Could not reach the server. Please try again.')
+    }
   }
 
   return (
@@ -48,6 +71,8 @@ export default function Login() {
             />
           </div>
 
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
           <button
             type="submit"
             className="w-full rounded-lg bg-blue-600 py-2 font-semibold text-white hover:bg-blue-700"
@@ -60,7 +85,7 @@ export default function Login() {
           No account yet?{' '}
           <Link to="/signup" className="text-blue-600 font-medium">
             Sign up
-        </Link>
+          </Link>
         </p>
       </div>
     </div>
