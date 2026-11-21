@@ -4,6 +4,7 @@ import 'dotenv/config'
 import { supabase } from './supabase.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/adminRoutes.js'
+import learnerRoutes from './routes/learnerRoutes.js'
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 
 const app = express()
@@ -12,6 +13,7 @@ app.use(cors())
 app.use(express.json())
 app.use('/api/auth', authRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/learner', learnerRoutes)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })

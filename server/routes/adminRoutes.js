@@ -24,6 +24,9 @@ const textbookConditions = ['new', 'good', 'fair', 'poor', 'damaged']
 const textbookFields = ['book_number', 'title', 'subject', 'grade', 'condition']
 const learnerFields = ['name', 'grade', 'class']
 const learnerColumns = 'id, name, email, grade, class, created_at'
+const allocationConditions = ['new', 'good', 'fair', 'poor', 'damaged']
+const allocationStatuses = ['issued', 'returned', 'lost', 'found', 'damaged']
+const allocationSelect = '*, textbook:textbooks!allocations_textbook_id_fkey!inner(book_number, title, subject, grade, condition), learner:users!allocations_learner_id_fkey!inner(id, name, grade, class)'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function parseTextbookInput(input, partial = false) {
@@ -110,12 +113,72 @@ function parseLearnerUpdate(input) {
   return { data: updates }
 }
 
+function parseAllocationInput(input) {
+  const fields = ['book_number', 'learner_id', 'condition_issued']
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { error: 'Request body must be an object.' }
+  }
+
+  const unknownFields = Object.keys(input).filter((field) => !fields.includes(field))
+  if (unknownFields.length) {
+    return { error: `Unsupported field: ${unknownFields[0]}.` }
+  }
+  if (typeof input.book_number !== 'string' || !input.book_number.trim()) {
+    return { error: 'book_number is required and must be a non-empty string.' }
+  }
+  if (typeof input.learner_id !== 'string' || !uuidPattern.test(input.learner_id)) {
+    return { error: 'learner_id must be a valid UUID.' }
+  }
+
+  const conditionIssued = Object.hasOwn(input, 'condition_issued') ? input.condition_issued : 'good'
+  if (!allocationConditions.includes(conditionIssued)) {
+    return { error: `condition_issued must be one of: ${allocationConditions.join(', ')}.` }
+  }
+
+  return {
+    data: {
+      book_number: input.book_number.trim(),
+      learner_id: input.learner_id,
+      condition_issued: conditionIssued,
+    },
+  }
+}
+
+function parseAllocationReturnInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { error: 'Request body must be an object.' }
+  }
+  const unknownFields = Object.keys(input).filter((field) => field !== 'condition_returned')
+  if (unknownFields.length) {
+    return { error: `Unsupported field: ${unknownFields[0]}.` }
+  }
+
+  const conditionReturned = Object.hasOwn(input, 'condition_returned')
+    ? input.condition_returned
+    : 'good'
+  if (!allocationConditions.includes(conditionReturned)) {
+    return { error: `condition_returned must be one of: ${allocationConditions.join(', ')}.` }
+  }
+
+  return { data: { condition_returned: conditionReturned } }
+}
+
 function textbookError(res, error) {
   if (error?.code === '23505') {
     return res.status(409).json({ error: 'A textbook with that book_number already exists.' })
   }
   if (error?.code === '23503') {
     return res.status(409).json({ error: 'The textbook has related records and cannot be changed.' })
+  }
+  return fail(res, error)
+}
+
+function allocationError(res, error) {
+  if (error?.code === '23505') {
+    return res.status(409).json({ error: 'This book is already issued to a learner.' })
+  }
+  if (error?.code === '23503') {
+    return res.status(409).json({ error: 'The learner or textbook is no longer available.' })
   }
   return fail(res, error)
 }
@@ -376,6 +439,195 @@ router.delete('/learners/:id', async (req, res) => {
 
     await logActivity(req.user.id, 'delete', 'learner', id, { name: learner.name })
     return res.status(200).json({ message: 'Learner deleted.' })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// List allocations with related textbook and learner details and optional filters.
+router.get('/allocations', async (req, res) => {
+  try {
+    const { learner, bookNumber, subject, grade, status, outstanding } = req.query
+    let query = supabase.from('allocations').select(allocationSelect)
+
+    if (learner !== undefined) {
+      if (typeof learner !== 'string') return res.status(400).json({ error: 'learner must be text.' })
+      const search = clean(learner).trim()
+      if (search) query = query.ilike('learner.name', `%${search}%`)
+    }
+
+    if (bookNumber !== undefined) {
+      if (typeof bookNumber !== 'string') {
+        return res.status(400).json({ error: 'bookNumber must be text.' })
+      }
+      const search = clean(bookNumber).trim()
+      if (search) query = query.ilike('textbook.book_number', `%${search}%`)
+    }
+
+    if (subject !== undefined) {
+      if (typeof subject !== 'string' || !subject.trim()) {
+        return res.status(400).json({ error: 'subject must be non-empty text.' })
+      }
+      query = query.eq('textbook.subject', subject.trim())
+    }
+
+    if (grade !== undefined) {
+      if (typeof grade !== 'string' || !/^(8|9|10|11|12)$/.test(grade)) {
+        return res.status(400).json({ error: 'grade must be an integer from 8 to 12.' })
+      }
+      query = query.eq('learner.grade', Number(grade))
+    }
+
+    if (status !== undefined) {
+      if (typeof status !== 'string' || !allocationStatuses.includes(status)) {
+        return res.status(400).json({ error: `status must be one of: ${allocationStatuses.join(', ')}.` })
+      }
+      query = query.eq('status', status)
+    }
+
+    if (outstanding !== undefined) {
+      if (outstanding === 'true') {
+        query = query.is('returned_at', null)
+      } else if (outstanding === 'false') {
+        query = query.not('returned_at', 'is', null)
+      } else {
+        return res.status(400).json({ error: 'outstanding must be true or false.' })
+      }
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
+    if (error) return fail(res, error)
+    return res.json({ allocations: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Issue a textbook to a learner and record the admin who issued it.
+router.post('/allocations', async (req, res) => {
+  const { data: input, error: validationError } = parseAllocationInput(req.body)
+  if (validationError) return res.status(400).json({ error: validationError })
+
+  try {
+    const { data: textbook, error: textbookError } = await supabase
+      .from('textbooks')
+      .select('id')
+      .eq('book_number', input.book_number)
+      .maybeSingle()
+    if (textbookError) return fail(res, textbookError)
+    if (!textbook) return res.status(404).json({ error: 'Textbook not found.' })
+
+    const { data: learner, error: learnerError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', input.learner_id)
+      .eq('role', 'user')
+      .maybeSingle()
+    if (learnerError) return fail(res, learnerError)
+    if (!learner) return res.status(404).json({ error: 'Learner not found.' })
+
+    const { data, error } = await supabase
+      .from('allocations')
+      .insert({
+        textbook_id: textbook.id,
+        learner_id: learner.id,
+        issued_by: req.user.id,
+        condition_issued: input.condition_issued,
+      })
+      .select(allocationSelect)
+      .single()
+    if (error) return allocationError(res, error)
+
+    await logActivity(req.user.id, 'issue', 'allocation', data.id, {
+      textbook_id: textbook.id,
+      learner_id: learner.id,
+      condition_issued: input.condition_issued,
+    })
+    return res.status(201).json({ allocation: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Mark an outstanding allocation as returned and update the textbook condition.
+router.put('/allocations/:id/return', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+
+  const { data: input, error: validationError } = parseAllocationReturnInput(req.body)
+  if (validationError) return res.status(400).json({ error: validationError })
+
+  try {
+    const { data: allocation, error: lookupError } = await supabase
+      .from('allocations')
+      .select('id, textbook_id, status, fee_status, returned_at')
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupError) return fail(res, lookupError)
+    if (!allocation) return res.status(404).json({ error: 'Allocation not found.' })
+    if (allocation.returned_at !== null) {
+      return res.status(409).json({ error: 'This allocation has already been returned.' })
+    }
+
+    const returnedAt = new Date().toISOString()
+    const status = allocation.status === 'lost' ? 'found' : 'returned'
+    const feeStatus = allocation.fee_status === 'paid'
+      ? 'refund_due'
+      : allocation.fee_status === 'owed'
+        ? 'none'
+        : allocation.fee_status
+    const { data: updated, error: updateError } = await supabase
+      .from('allocations')
+      .update({
+        returned_at: returnedAt,
+        returned_by: req.user.id,
+        condition_returned: input.condition_returned,
+        status,
+        fee_status: feeStatus,
+      })
+      .eq('id', id)
+      .is('returned_at', null)
+      .select('id')
+      .maybeSingle()
+    if (updateError) return allocationError(res, updateError)
+    if (!updated) {
+      const { data: current, error: currentError } = await supabase
+        .from('allocations')
+        .select('id, returned_at')
+        .eq('id', id)
+        .maybeSingle()
+      if (currentError) return fail(res, currentError)
+      if (!current) return res.status(404).json({ error: 'Allocation not found.' })
+      return res.status(409).json({ error: 'This allocation has already been returned.' })
+    }
+
+    await logActivity(req.user.id, 'return', 'allocation', id, {
+      returned_at: returnedAt,
+      condition_returned: input.condition_returned,
+      status,
+      fee_status: feeStatus,
+    })
+
+    const { data: updatedTextbook, error: textbookUpdateError } = await supabase
+      .from('textbooks')
+      .update({ condition: input.condition_returned })
+      .eq('id', allocation.textbook_id)
+      .select('id')
+      .maybeSingle()
+    if (textbookUpdateError) return fail(res, textbookUpdateError)
+    if (!updatedTextbook) return fail(res, new Error('Textbook for allocation was not found.'))
+
+    await logActivity(req.user.id, 'update', 'textbook', allocation.textbook_id, {
+      condition: input.condition_returned,
+    })
+
+    const { data, error } = await supabase
+      .from('allocations')
+      .select(allocationSelect)
+      .eq('id', id)
+      .single()
+    if (error) return fail(res, error)
+    return res.json({ allocation: data })
   } catch (error) {
     return fail(res, error)
   }
