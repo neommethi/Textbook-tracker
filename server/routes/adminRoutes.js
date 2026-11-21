@@ -22,6 +22,8 @@ function fail(res, error) {
 
 const textbookConditions = ['new', 'good', 'fair', 'poor', 'damaged']
 const textbookFields = ['book_number', 'title', 'subject', 'grade', 'condition']
+const learnerFields = ['name', 'grade', 'class']
+const learnerColumns = 'id, name, email, grade, class, created_at'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function parseTextbookInput(input, partial = false) {
@@ -67,6 +69,45 @@ function parseTextbookInput(input, partial = false) {
   }
 
   return { data }
+}
+
+function parseLearnerUpdate(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { error: 'Request body must be an object.' }
+  }
+
+  const unknownFields = Object.keys(input).filter((field) => !learnerFields.includes(field))
+  if (unknownFields.length) {
+    return { error: `Unsupported field: ${unknownFields[0]}.` }
+  }
+
+  const updates = {}
+  if (Object.hasOwn(input, 'name')) {
+    if (typeof input.name !== 'string' || !input.name.trim()) {
+      return { error: 'name must be a non-empty string.' }
+    }
+    updates.name = input.name.trim()
+  }
+
+  if (Object.hasOwn(input, 'grade')) {
+    if (input.grade !== null && (!Number.isInteger(input.grade) || input.grade < 8 || input.grade > 12)) {
+      return { error: 'grade must be an integer from 8 to 12 or null.' }
+    }
+    updates.grade = input.grade
+  }
+
+  if (Object.hasOwn(input, 'class')) {
+    if (input.class !== null && (typeof input.class !== 'string' || !input.class.trim())) {
+      return { error: 'class must be a non-empty string or null.' }
+    }
+    updates.class = input.class === null ? null : input.class.trim()
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { error: 'Provide at least one learner field to update.' }
+  }
+
+  return { data: updates }
 }
 
 function textbookError(res, error) {
@@ -198,6 +239,143 @@ router.delete('/textbooks/:id', async (req, res) => {
 
     await logActivity(req.user.id, 'delete', 'textbook', id, { book_number: textbook.book_number })
     return res.json({ message: 'Textbook deleted.' })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// List learners with only currently outstanding allocations and textbook details.
+router.get('/learners', async (req, res) => {
+  try {
+    const { q, grade, class: learnerClass, outstanding } = req.query
+    let query = supabase.from('users').select(learnerColumns).eq('role', 'user')
+
+    if (q !== undefined) {
+      if (typeof q !== 'string') return res.status(400).json({ error: 'q must be text.' })
+      const search = clean(q).trim()
+      if (search) query = query.ilike('name', `%${search}%`)
+    }
+
+    if (grade !== undefined) {
+      if (typeof grade !== 'string' || !/^(8|9|10|11|12)$/.test(grade)) {
+        return res.status(400).json({ error: 'grade must be an integer from 8 to 12.' })
+      }
+      query = query.eq('grade', Number(grade))
+    }
+
+    if (learnerClass !== undefined) {
+      if (typeof learnerClass !== 'string' || !learnerClass.trim()) {
+        return res.status(400).json({ error: 'class must be non-empty text.' })
+      }
+      query = query.eq('class', learnerClass.trim())
+    }
+
+    if (outstanding !== undefined && !['true', 'false'].includes(outstanding)) {
+      return res.status(400).json({ error: 'outstanding must be true or false.' })
+    }
+
+    const { data: learners, error: learnerError } = await query.order('name', { ascending: true })
+    if (learnerError) return fail(res, learnerError)
+
+    const allocationsByLearner = new Map()
+    if (learners.length) {
+      const { data: allocations, error: allocationError } = await supabase
+        .from('allocations')
+        .select('id, learner_id, textbook_id, issued_at, textbook:textbooks!allocations_textbook_id_fkey(book_number, title, subject)')
+        .in('learner_id', learners.map((learner) => learner.id))
+        .is('returned_at', null)
+      if (allocationError) return fail(res, allocationError)
+
+      for (const allocation of allocations) {
+        const learnerAllocations = allocationsByLearner.get(allocation.learner_id) || []
+        learnerAllocations.push({
+          id: allocation.id,
+          textbook_id: allocation.textbook_id,
+          issued_at: allocation.issued_at,
+          textbook: allocation.textbook,
+        })
+        allocationsByLearner.set(allocation.learner_id, learnerAllocations)
+      }
+    }
+
+    const results = learners
+      .map((learner) => ({
+        ...learner,
+        outstanding: allocationsByLearner.get(learner.id) || [],
+      }))
+      .filter((learner) => outstanding !== 'true' || learner.outstanding.length > 0)
+
+    return res.json({ learners: results })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Update allowed learner fields without exposing or changing account credentials.
+router.put('/learners/:id', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+
+  const { data: updates, error: validationError } = parseLearnerUpdate(req.body)
+  if (validationError) return res.status(400).json({ error: validationError })
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', id)
+      .eq('role', 'user')
+      .select(learnerColumns)
+      .maybeSingle()
+    if (error) return fail(res, error)
+    if (!data) return res.status(404).json({ error: 'Learner not found.' })
+
+    await logActivity(req.user.id, 'update', 'learner', id, updates)
+    return res.json({ learner: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Delete a learner only when no allocation history refers to them.
+router.delete('/learners/:id', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+
+  try {
+    const { data: learner, error: lookupError } = await supabase
+      .from('users')
+      .select(learnerColumns)
+      .eq('id', id)
+      .eq('role', 'user')
+      .maybeSingle()
+    if (lookupError) return fail(res, lookupError)
+    if (!learner) return res.status(404).json({ error: 'Learner not found.' })
+
+    const { count, error: historyError } = await supabase
+      .from('allocations')
+      .select('id', { count: 'exact', head: true })
+      .eq('learner_id', id)
+    if (historyError) return fail(res, historyError)
+    if (count > 0) {
+      return res.status(409).json({ error: 'Learners with allocation history cannot be deleted.' })
+    }
+
+    const { data: deleted, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .eq('role', 'user')
+      .select('id')
+      .maybeSingle()
+    if (error?.code === '23503') {
+      return res.status(409).json({ error: 'The learner has related records and cannot be deleted.' })
+    }
+    if (error) return fail(res, error)
+    if (!deleted) return res.status(404).json({ error: 'Learner not found.' })
+
+    await logActivity(req.user.id, 'delete', 'learner', id, { name: learner.name })
+    return res.status(200).json({ message: 'Learner deleted.' })
   } catch (error) {
     return fail(res, error)
   }
