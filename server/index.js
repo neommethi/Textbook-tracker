@@ -3,6 +3,7 @@ import cors from 'cors'
 import 'dotenv/config'
 import { supabase } from './supabase.js'
 import authRoutes from './routes/auth.js'
+import { requireAuth, requireAdmin } from './middleware/auth.js'
 
 const app = express()
 
@@ -11,6 +12,9 @@ app.use(express.json())
 app.use('/api/auth', authRoutes)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
+})
+app.get('/api/admin/ping', requireAuth, requireAdmin, (req, res) => {
+  res.json({ ok: true, message: 'Admin access granted' })
 })
 
 app.get('/api/test-db', async (req, res) => {
