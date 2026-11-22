@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export default function Signup() {
   const navigate = useNavigate()
-  const API = 'http://localhost:3000'
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [grade, setGrade] = useState('')
+  const [classGroup, setClassGroup] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -28,7 +30,7 @@ export default function Signup() {
       const res = await fetch(`${API}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, grade, class: classGroup }),
       })
       const data = await res.json()
 
@@ -43,45 +45,55 @@ export default function Signup() {
   }
 
   const inputClass =
-    'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
+    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
+  const labelClass = 'block text-sm font-medium text-slate-700'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
       <div className="w-full max-w-sm bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
+        <p className="text-sm text-slate-600 mt-1">
           We only ask for what we need to show you your textbooks.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Full name
-            </label>
+            <label htmlFor="name" className={labelClass}>Full name</label>
             <input id="name" type="text" value={name}
               onChange={(e) => setName(e.target.value)} required className={inputClass} />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
+            <label htmlFor="email" className={labelClass}>Email</label>
             <input id="email" type="email" value={email}
               onChange={(e) => setEmail(e.target.value)} required className={inputClass} />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+            <label htmlFor="grade" className={labelClass}>Grade</label>
+            <select id="grade" value={grade}
+              onChange={(e) => setGrade(e.target.value)} required className={inputClass}>
+              <option value="">Select your grade</option>
+              {[8, 9, 10, 11, 12].map((g) => (
+                <option key={g} value={g}>Grade {g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="class" className={labelClass}>Class (optional)</label>
+            <input id="class" type="text" value={classGroup} placeholder="e.g. 10A"
+              onChange={(e) => setClassGroup(e.target.value)} className={inputClass} />
+          </div>
+
+          <div>
+            <label htmlFor="password" className={labelClass}>Password</label>
             <input id="password" type="password" value={password}
               onChange={(e) => setPassword(e.target.value)} required className={inputClass} />
           </div>
 
           <div>
-            <label htmlFor="confirm" className="block text-sm font-medium text-gray-700">
-              Confirm password
-            </label>
+            <label htmlFor="confirm" className={labelClass}>Confirm password</label>
             <input id="confirm" type="password" value={confirm}
               onChange={(e) => setConfirm(e.target.value)} required className={inputClass} />
           </div>
@@ -94,7 +106,7 @@ export default function Signup() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-slate-600">
           Already have an account?{' '}
           <Link to="/login" className="text-blue-600 font-medium">Log in</Link>
         </p>
