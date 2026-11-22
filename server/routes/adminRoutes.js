@@ -233,6 +233,20 @@ router.get('/textbooks', async (req, res) => {
   }
 })
 
+// Return the distinct subject names present in the textbook inventory.
+router.get('/subjects', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('textbooks').select('subject').order('subject')
+    if (error) return fail(res, error)
+
+    const subjects = [...new Set(data.map(({ subject }) => subject).filter(Boolean))]
+      .map((name) => ({ id: name, name }))
+    return res.json({ subjects })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
 // Create a textbook after validating its fields and record the change.
 router.post('/textbooks', async (req, res) => {
   const { data: textbook, error: validationError } = parseTextbookInput(req.body)
