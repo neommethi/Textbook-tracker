@@ -6,7 +6,7 @@ import { supabase } from '../supabase.js'
 const router = express.Router()
 
 router.post('/signup', async (req, res) => {
-  const { name, email, password } = req.body
+  const { name, email, password, grade, class: classGroup } = req.body
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email and password are required.' })
@@ -14,6 +14,13 @@ router.post('/signup', async (req, res) => {
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' })
   }
+
+  const gradeNumber = Number(grade)
+  if (!Number.isInteger(gradeNumber) || gradeNumber < 8 || gradeNumber > 12) {
+    return res.status(400).json({ error: 'Grade must be from 8 to 12.' })
+  }
+  const cleanClass =
+    typeof classGroup === 'string' && classGroup.trim() ? classGroup.trim() : null
 
   const cleanEmail = email.trim().toLowerCase()
 
@@ -31,8 +38,15 @@ router.post('/signup', async (req, res) => {
 
   const { data, error } = await supabase
     .from('users')
-    .insert({ name: name.trim(), email: cleanEmail, password_hash, role: 'user' })
-    .select('id, name, email, role')
+    .insert({
+      name: name.trim(),
+      email: cleanEmail,
+      password_hash,
+      role: 'user',
+      grade: gradeNumber,
+      class: cleanClass,
+    })
+    .select('id, name, email, role, grade, class')
     .single()
 
   if (error) {

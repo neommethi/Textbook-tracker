@@ -1,6 +1,6 @@
 import TextbookRow from './TextbookRow'
 
-// Keep all edit, add, and delete actions for one learner together.
+// Keep learner and allocation management actions together.
 export default function LearnerManagementModal({
   learner,
   onClose,
@@ -8,7 +8,7 @@ export default function LearnerManagementModal({
   onDeleteLearner,
   onAddTextbook,
   onEditTextbook,
-  onDeleteTextbook,
+  onReturnTextbook,
 }) {
   function runAndClose(action) {
     action()
@@ -29,7 +29,7 @@ export default function LearnerManagementModal({
               id="learner-management-title"
               className="text-xl font-semibold text-slate-900"
             >
-              Manage {learner.firstName} {learner.lastName}
+              Manage {learner.name}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Grade {learner.grade}
@@ -77,14 +77,14 @@ export default function LearnerManagementModal({
             <ul className="mt-2">
               {learner.textbooks.map((textbook) => (
                 <TextbookRow
-                  key={textbook.bookNumber}
+                  key={textbook.allocationId}
                   textbook={textbook}
                   showActions
                   onEdit={() =>
                     runAndClose(() => onEditTextbook(learner.id, textbook))
                   }
-                  onDelete={() =>
-                    runAndClose(() => onDeleteTextbook(learner.id, textbook))
+                  onReturn={() =>
+                    runAndClose(() => onReturnTextbook(textbook))
                   }
                 />
               ))}

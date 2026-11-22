@@ -4,7 +4,12 @@ export default function ConfirmDeleteModal({
   itemDescription,
   onConfirm,
   onCancel,
+  action = 'delete',
+  error,
+  loading = false,
 }) {
+  const isReturn = action === 'return'
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
       <section
@@ -14,27 +19,38 @@ export default function ConfirmDeleteModal({
         role="alertdialog"
       >
         <h2 id="delete-modal-title" className="text-xl font-semibold text-slate-900">
-          Delete {itemType}?
+          {isReturn ? 'Return book?' : `Delete ${itemType}?`}
         </h2>
         <p className="mt-3 break-words text-sm text-slate-600">
-          {itemType === 'learner'
-            ? `This will delete ${itemDescription} and all of their textbooks.`
-            : `This will delete ${itemDescription}.`}
+          {isReturn
+            ? `This will record ${itemDescription} as returned and preserve its allocation history.`
+            : itemType === 'learner'
+              ? `This will delete ${itemDescription}. Learners with allocation history cannot be deleted.`
+              : `This will delete ${itemDescription}.`}
         </p>
+        {error && (
+          <p className="mt-3 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
             onClick={onCancel}
             type="button"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
-            className="min-h-11 rounded-lg bg-red-700 px-4 py-2 font-medium text-white hover:bg-red-800"
+            className={`min-h-11 rounded-lg px-4 py-2 font-medium text-white ${
+              isReturn ? 'bg-blue-700 hover:bg-blue-800' : 'bg-red-700 hover:bg-red-800'
+            }`}
             onClick={onConfirm}
             type="button"
+            disabled={loading}
           >
-            Delete {itemType}
+            {loading ? 'Saving...' : isReturn ? 'Return book' : `Delete ${itemType}`}
           </button>
         </div>
       </section>

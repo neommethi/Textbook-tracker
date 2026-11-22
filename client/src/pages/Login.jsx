@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export default function Login() {
   const navigate = useNavigate()
-  const API = 'http://localhost:3000'
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

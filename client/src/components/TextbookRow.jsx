@@ -3,7 +3,7 @@ export default function TextbookRow({
   textbook,
   showActions = false,
   onEdit,
-  onDelete,
+  onReturn,
 }) {
   const statusStyles = textbook.returned
     ? 'bg-blue-100 text-blue-800'
@@ -34,13 +34,15 @@ export default function TextbookRow({
             >
               Edit
             </button>
-            <button
-              className="min-h-9 rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
-              onClick={onDelete}
-              type="button"
-            >
-              Delete
-            </button>
+            {!textbook.returned && (
+              <button
+                className="min-h-9 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                onClick={onReturn}
+                type="button"
+              >
+                Return
+              </button>
+            )}
           </div>
         )}
       </div>
