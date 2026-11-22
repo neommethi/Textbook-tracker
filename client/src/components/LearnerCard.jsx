@@ -8,7 +8,7 @@ export default function LearnerCard({
   onDeleteLearner,
   onAddTextbook,
   onEditTextbook,
-  onDeleteTextbook,
+  onReturnTextbook,
 }) {
   const [managementOpen, setManagementOpen] = useState(false)
 
@@ -17,7 +17,7 @@ export default function LearnerCard({
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">
-            {learner.firstName} {learner.lastName}
+            {learner.name}
           </h2>
           <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
             Grade {learner.grade}
@@ -27,7 +27,7 @@ export default function LearnerCard({
       <ul>
         {learner.textbooks.map((textbook) => (
           <li
-            key={textbook.bookNumber}
+            key={textbook.allocationId}
             className="flex items-center justify-between gap-3 border-t border-slate-100 py-3"
           >
             <div className="min-w-0">
@@ -66,7 +66,7 @@ export default function LearnerCard({
           onDeleteLearner={onDeleteLearner}
           onAddTextbook={onAddTextbook}
           onEditTextbook={onEditTextbook}
-          onDeleteTextbook={onDeleteTextbook}
+          onReturnTextbook={onReturnTextbook}
         />
       )}
     </article>

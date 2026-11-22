@@ -1,4 +1,4 @@
-// Displays the total number of books calculated from learner data.
+// Displays the totals returned by the admin summary endpoint.
 export default function SummaryStrip({
   totalLearners,
   totalTextbooks,
