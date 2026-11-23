@@ -1,32 +1,32 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 
-const conditions = ['new', 'good', 'fair', 'poor', 'damaged']
-
-// Load subjects and available copies when the form opens.
+// Load the full textbook list once; allocations do not make catalog entries unavailable.
 export default function TextbookForm({
   learner,
   textbook,
   onSave,
   onCancel,
 }) {
-  const [bookNumber, setBookNumber] = useState(textbook?.bookNumber ?? '')
+  const [selectedTextbookId, setSelectedTextbookId] = useState('')
   const [title, setTitle] = useState(textbook?.title ?? '')
   const [subject, setSubject] = useState(textbook?.subject ?? '')
+  const [grade, setGrade] = useState(textbook?.grade?.toString() ?? '')
   const [subjects, setSubjects] = useState([])
   const [books, setBooks] = useState([])
-  const [unavailableBookNumbers, setUnavailableBookNumbers] = useState(new Set())
-  const [condition, setCondition] = useState('good')
   const [showOtherGrades, setShowOtherGrades] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!textbook)
-  const [booksLoading, setBooksLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [initialError, setInitialError] = useState('')
-  const [booksError, setBooksError] = useState('')
   const [submitError, setSubmitError] = useState('')
 
   const learnerGrade = learner?.grade == null ? null : Number(learner.grade)
   const hasGrade = Number.isInteger(learnerGrade) && learnerGrade >= 8 && learnerGrade <= 12
+  const matchingBooks = books.filter(
+    (book) =>
+      book.subject === subject &&
+      (!hasGrade || showOtherGrades || book.grade === learnerGrade),
+  )
 
   useEffect(() => {
     if (textbook) return undefined
@@ -34,21 +34,15 @@ export default function TextbookForm({
     let active = true
     Promise.all([
       apiFetch('/api/admin/subjects'),
-      apiFetch('/api/admin/allocations?outstanding=true'),
+      apiFetch('/api/admin/textbooks'),
     ])
-      .then(([subjectResult, allocationResult]) => {
+      .then(([subjectResult, textbookResult]) => {
         if (!active) return
         setSubjects(subjectResult.subjects)
-        setUnavailableBookNumbers(
-          new Set(
-            allocationResult.allocations
-              .map((allocation) => allocation.textbook?.book_number)
-              .filter(Boolean),
-          ),
-        )
+        setBooks(textbookResult.textbooks)
       })
       .catch((error) => {
-        if (active) setInitialError(error.message || 'Could not load subjects and available books.')
+        if (active) setInitialError(error.message || 'Could not load subjects and textbooks.')
       })
       .finally(() => {
         if (active) setInitialLoading(false)
@@ -59,70 +53,19 @@ export default function TextbookForm({
     }
   }, [textbook])
 
-  useEffect(() => {
-    if (textbook || !subject || initialError) return undefined
-
-    let active = true
-    const query = new URLSearchParams({ subject })
-    if (hasGrade && !showOtherGrades) {
-      query.set('grade', learnerGrade)
-    }
-
-    apiFetch(`/api/admin/textbooks?${query}`)
-      .then((result) => {
-        if (!active) return
-        const availableBooks = result.textbooks.filter(
-          (book) => !unavailableBookNumbers.has(book.book_number),
-        )
-        setBooks(availableBooks)
-        setBookNumber((currentBookNumber) =>
-          availableBooks.some((book) => book.book_number === currentBookNumber)
-            ? currentBookNumber
-            : '',
-        )
-      })
-      .catch((error) => {
-        if (active) setBooksError(error.message || 'Could not load books.')
-      })
-      .finally(() => {
-        if (active) setBooksLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [
-    hasGrade,
-    initialError,
-    learnerGrade,
-    showOtherGrades,
-    subject,
-    textbook,
-    unavailableBookNumbers,
-  ])
-
   function handleSubjectChange(event) {
     setSubject(event.target.value)
-    setBookNumber('')
-    setBooks([])
-    setBooksError('')
+    setSelectedTextbookId('')
     setSubmitError('')
-    setCondition('good')
-    setBooksLoading(Boolean(event.target.value))
   }
 
   function handleOtherGradesChange(event) {
     setShowOtherGrades(event.target.checked)
-    setBooksError('')
     setSubmitError('')
-    setBooksLoading(true)
   }
 
   function handleBookChange(event) {
-    const selectedBookNumber = event.target.value
-    const selectedBook = books.find((book) => book.book_number === selectedBookNumber)
-    setBookNumber(selectedBookNumber)
-    setCondition(selectedBook?.condition || 'good')
+    setSelectedTextbookId(event.target.value)
     setSubmitError('')
   }
 
@@ -131,17 +74,17 @@ export default function TextbookForm({
     setSubmitError('')
 
     if (textbook) {
-      if (!bookNumber.trim() || !title.trim() || !subject.trim()) {
-        setSubmitError('Enter a book number, title and subject.')
+      if (!title.trim() || !subject.trim() || !/^(8|9|10|11|12)$/.test(grade)) {
+        setSubmitError('Enter a title, subject and grade from 8 to 12.')
         return
       }
 
       setSaving(true)
       try {
         await onSave({
-          bookNumber: bookNumber.trim(),
           title: title.trim(),
           subject: subject.trim(),
+          grade: Number(grade),
         })
       } catch (error) {
         setSubmitError(error.message || 'Could not save textbook.')
@@ -151,27 +94,30 @@ export default function TextbookForm({
       return
     }
 
-    const selectedBook = books.find((book) => book.book_number === bookNumber)
+    const selectedBook = matchingBooks.find(
+      (book) => book.id === selectedTextbookId,
+    )
     if (!selectedBook) {
-      setSubmitError('Choose an available book.')
+      setSubmitError('Choose a textbook.')
       return
     }
 
     setSaving(true)
     try {
       await onSave({
-        book_number: selectedBook.book_number,
-        condition_issued: condition,
+        textbook_id: selectedBook.id,
       })
     } catch (error) {
-      setSubmitError(error.message || 'Could not issue textbook.')
+      setSubmitError(error.message || 'Could not allocate textbook.')
     } finally {
       setSaving(false)
     }
   }
 
-  const loadError = initialError || booksError
-  const selectedBook = books.find((book) => book.book_number === bookNumber)
+  const loadError = initialError
+  const selectedBook = matchingBooks.find(
+    (book) => book.id === selectedTextbookId,
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
@@ -187,19 +133,6 @@ export default function TextbookForm({
         <form className="mt-5 space-y-4" onSubmit={handleSubmit} noValidate>
           {textbook ? (
             <>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-book-number">
-                  Book number
-                </label>
-                <input
-                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  id="textbook-book-number"
-                  onChange={(event) => setBookNumber(event.target.value)}
-                  required
-                  type="text"
-                  value={bookNumber}
-                />
-              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-title">
                   Title
@@ -224,6 +157,21 @@ export default function TextbookForm({
                   required
                   type="text"
                   value={subject}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-grade">
+                  Grade
+                </label>
+                <input
+                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  id="textbook-grade"
+                  max="12"
+                  min="8"
+                  onChange={(event) => setGrade(event.target.value)}
+                  required
+                  type="number"
+                  value={grade}
                 />
               </div>
             </>
@@ -272,52 +220,34 @@ export default function TextbookForm({
                 </label>
               )}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-book">
-                  Book
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-select">
+                  Textbook
                 </label>
                 <select
                   className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-slate-100"
-                  disabled={!subject || initialLoading || booksLoading || Boolean(loadError) || saving}
-                  id="textbook-book"
+                  disabled={!subject || initialLoading || Boolean(loadError) || saving}
+                  id="textbook-select"
                   onChange={handleBookChange}
-                  value={bookNumber}
+                  value={selectedTextbookId}
                 >
                   <option value="">
-                    {booksLoading ? 'Loading books...' : 'Choose a book'}
+                    {initialLoading ? 'Loading textbooks...' : 'Choose a book'}
                   </option>
-                  {books.map((book) => (
-                    <option key={book.id} value={book.book_number}>
-                      {book.title} (No. {book.book_number})
+                  {matchingBooks.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.title} (Grade {book.grade})
                     </option>
                   ))}
                 </select>
-                {subject && !booksLoading && !loadError && books.length === 0 && (
+                {subject && !initialLoading && !loadError && matchingBooks.length === 0 && (
                   <p className="mt-2 text-sm text-slate-600">
-                    No copies available for this subject.
+                    No textbooks found for this subject.
                   </p>
                 )}
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="condition-issued">
-                  Condition issued
-                </label>
-                <select
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  disabled={saving}
-                  id="condition-issued"
-                  onChange={(event) => setCondition(event.target.value)}
-                  value={condition}
-                >
-                  {conditions.map((value) => (
-                    <option key={value} value={value}>
-                      {value.charAt(0).toUpperCase() + value.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
               {selectedBook && (
                 <p className="text-sm text-slate-600">
-                  Selected copy condition: {selectedBook.condition}.
+                  Selected textbook: {selectedBook.title}, Grade {selectedBook.grade}.
                 </p>
               )}
             </>
@@ -346,11 +276,11 @@ export default function TextbookForm({
               className="min-h-11 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={
                 saving ||
-                (!textbook && (initialLoading || booksLoading || !selectedBook || Boolean(loadError)))
+                (!textbook && (initialLoading || !selectedBook || Boolean(loadError)))
               }
               type="submit"
             >
-              {saving ? 'Saving...' : textbook ? 'Save textbook' : 'Issue textbook'}
+              {saving ? 'Saving...' : textbook ? 'Save textbook' : 'Allocate textbook'}
             </button>
           </div>
         </form>

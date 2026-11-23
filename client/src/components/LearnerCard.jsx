@@ -32,11 +32,16 @@ export default function LearnerCard({
           >
             <div className="min-w-0">
               <span className="mr-2 font-mono text-xs text-slate-500">
-                {textbook.bookNumber}
+                Allocation {textbook.allocationNumber}
               </span>
-              <span className="break-words text-sm text-slate-700">
+              <span className="break-words text-sm font-medium text-slate-800">
+                {textbook.title}
+              </span>
+              <p className="text-sm text-slate-600">
                 {textbook.subject}
-              </span>
+                {' · Grade '}
+                {textbook.grade}
+              </p>
             </div>
             <span
               className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${

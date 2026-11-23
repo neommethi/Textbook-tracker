@@ -20,13 +20,10 @@ function fail(res, error) {
   return res.status(500).json({ error: 'Internal server error' })
 }
 
-const textbookConditions = ['new', 'good', 'fair', 'poor', 'damaged']
-const textbookFields = ['book_number', 'title', 'subject', 'grade', 'condition']
+const textbookFields = ['title', 'subject', 'grade']
 const learnerFields = ['name', 'grade', 'class']
 const learnerColumns = 'id, name, email, grade, class, created_at'
-const allocationConditions = ['new', 'good', 'fair', 'poor', 'damaged']
-const allocationStatuses = ['issued', 'returned', 'lost', 'found', 'damaged']
-const allocationSelect = '*, textbook:textbooks!allocations_textbook_id_fkey!inner(book_number, title, subject, grade, condition), learner:users!allocations_learner_id_fkey!inner(id, name, grade, class)'
+const allocationSelect = 'id, allocation_number, textbook_id, learner_id, allocated_at, returned_at, textbook:textbooks!textbook_allocations_textbook_id_fkey(title, subject, grade)'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function parseTextbookInput(input, partial = false) {
@@ -40,7 +37,7 @@ function parseTextbookInput(input, partial = false) {
   }
 
   const data = {}
-  for (const field of ['book_number', 'title', 'subject']) {
+  for (const field of ['title', 'subject']) {
     if (!partial && (typeof input[field] !== 'string' || !input[field].trim())) {
       return { error: `${field} is required and must be a non-empty string.` }
     }
@@ -52,19 +49,14 @@ function parseTextbookInput(input, partial = false) {
     }
   }
 
+  if (!partial && !Object.hasOwn(input, 'grade')) {
+    return { error: 'grade is required and must be an integer from 8 to 12.' }
+  }
   if (Object.hasOwn(input, 'grade')) {
-    if (input.grade !== null && (!Number.isInteger(input.grade) || input.grade < 8 || input.grade > 12)) {
-      return { error: 'grade must be an integer from 8 to 12 or null.' }
+    if (!Number.isInteger(input.grade) || input.grade < 8 || input.grade > 12) {
+      return { error: 'grade must be an integer from 8 to 12.' }
     }
     data.grade = input.grade
-  }
-
-  if (!partial || Object.hasOwn(input, 'condition')) {
-    const condition = Object.hasOwn(input, 'condition') ? input.condition : 'good'
-    if (!textbookConditions.includes(condition)) {
-      return { error: `condition must be one of: ${textbookConditions.join(', ')}.` }
-    }
-    data.condition = condition
   }
 
   if (partial && Object.keys(data).length === 0) {
@@ -114,7 +106,7 @@ function parseLearnerUpdate(input) {
 }
 
 function parseAllocationInput(input) {
-  const fields = ['book_number', 'learner_id', 'condition_issued']
+  const fields = ['textbook_id', 'learner_id']
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { error: 'Request body must be an object.' }
   }
@@ -123,64 +115,30 @@ function parseAllocationInput(input) {
   if (unknownFields.length) {
     return { error: `Unsupported field: ${unknownFields[0]}.` }
   }
-  if (typeof input.book_number !== 'string' || !input.book_number.trim()) {
-    return { error: 'book_number is required and must be a non-empty string.' }
+  if (typeof input.textbook_id !== 'string' || !uuidPattern.test(input.textbook_id)) {
+    return { error: 'textbook_id must be a valid UUID.' }
   }
-  if (typeof input.learner_id !== 'string' || !uuidPattern.test(input.learner_id)) {
-    return { error: 'learner_id must be a valid UUID.' }
-  }
-
-  const conditionIssued = Object.hasOwn(input, 'condition_issued') ? input.condition_issued : 'good'
-  if (!allocationConditions.includes(conditionIssued)) {
-    return { error: `condition_issued must be one of: ${allocationConditions.join(', ')}.` }
+  if (typeof input.learner_id !== 'string' || !input.learner_id.trim()) {
+    return { error: 'learner_id is required and must be non-empty text.' }
   }
 
   return {
     data: {
-      book_number: input.book_number.trim(),
-      learner_id: input.learner_id,
-      condition_issued: conditionIssued,
+      textbook_id: input.textbook_id,
+      learner_id: input.learner_id.trim(),
     },
   }
 }
 
-function parseAllocationReturnInput(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    return { error: 'Request body must be an object.' }
-  }
-  const unknownFields = Object.keys(input).filter((field) => field !== 'condition_returned')
-  if (unknownFields.length) {
-    return { error: `Unsupported field: ${unknownFields[0]}.` }
-  }
-
-  const conditionReturned = Object.hasOwn(input, 'condition_returned')
-    ? input.condition_returned
-    : 'good'
-  if (!allocationConditions.includes(conditionReturned)) {
-    return { error: `condition_returned must be one of: ${allocationConditions.join(', ')}.` }
-  }
-
-  return { data: { condition_returned: conditionReturned } }
-}
-
 function textbookError(res, error) {
-  if (error?.code === '23505') {
-    return res.status(409).json({ error: 'A textbook with that book_number already exists.' })
-  }
   if (error?.code === '23503') {
     return res.status(409).json({ error: 'The textbook has related records and cannot be changed.' })
   }
   return fail(res, error)
 }
 
-function allocationError(res, error) {
-  if (error?.code === '23505') {
-    return res.status(409).json({ error: 'This book is already issued to a learner.' })
-  }
-  if (error?.code === '23503') {
-    return res.status(409).json({ error: 'The learner or textbook is no longer available.' })
-  }
-  return fail(res, error)
+function getAllocationResult(data) {
+  return Array.isArray(data) ? data[0] : data
 }
 
 async function logActivity(actorId, action, entity, entityId, details) {
@@ -199,16 +157,16 @@ async function logActivity(actorId, action, entity, entityId, details) {
   }
 }
 
-// List textbooks, optionally filtered by search text, subject, and grade.
+// List textbooks by their current schema fields; no allocation availability filter is applied.
 router.get('/textbooks', async (req, res) => {
   try {
     const { q, subject, grade } = req.query
-    let query = supabase.from('textbooks').select('*')
+    let query = supabase.from('textbooks').select('id, title, subject, grade, created_at')
 
     if (q !== undefined) {
       if (typeof q !== 'string') return res.status(400).json({ error: 'q must be text.' })
       const search = clean(q).trim()
-      if (search) query = query.or(`book_number.ilike.%${search}%,title.ilike.%${search}%`)
+      if (search) query = query.ilike('title', `%${search}%`)
     }
 
     if (subject !== undefined) {
@@ -233,14 +191,13 @@ router.get('/textbooks', async (req, res) => {
   }
 })
 
-// Return the distinct subject names present in the textbook inventory.
+// Return the configured subject list.
 router.get('/subjects', async (req, res) => {
   try {
-    const { data, error } = await supabase.from('textbooks').select('subject').order('subject')
+    const { data, error } = await supabase.from('subjects').select('name').order('name')
     if (error) return fail(res, error)
 
-    const subjects = [...new Set(data.map(({ subject }) => subject).filter(Boolean))]
-      .map((name) => ({ id: name, name }))
+    const subjects = data.map(({ name }) => ({ id: name, name }))
     return res.json({ subjects })
   } catch (error) {
     return fail(res, error)
@@ -296,14 +253,14 @@ router.delete('/textbooks/:id', async (req, res) => {
   try {
     const { data: textbook, error: lookupError } = await supabase
       .from('textbooks')
-      .select('id, book_number')
+      .select('id, title, subject')
       .eq('id', id)
       .maybeSingle()
     if (lookupError) return fail(res, lookupError)
     if (!textbook) return res.status(404).json({ error: 'Textbook not found.' })
 
     const { count, error: historyError } = await supabase
-      .from('allocations')
+      .from('textbook_allocations')
       .select('id', { count: 'exact', head: true })
       .eq('textbook_id', id)
     if (historyError) return fail(res, historyError)
@@ -314,17 +271,20 @@ router.delete('/textbooks/:id', async (req, res) => {
     const { error } = await supabase.from('textbooks').delete().eq('id', id)
     if (error) return textbookError(res, error)
 
-    await logActivity(req.user.id, 'delete', 'textbook', id, { book_number: textbook.book_number })
+    await logActivity(req.user.id, 'delete', 'textbook', id, {
+      title: textbook.title,
+      subject: textbook.subject,
+    })
     return res.json({ message: 'Textbook deleted.' })
   } catch (error) {
     return fail(res, error)
   }
 })
 
-// List learners with only currently outstanding allocations and textbook details.
+// List learners; allocation history is loaded separately from the allocations endpoint.
 router.get('/learners', async (req, res) => {
   try {
-    const { q, grade, class: learnerClass, outstanding } = req.query
+    const { q, grade, class: learnerClass } = req.query
     let query = supabase.from('users').select(learnerColumns).eq('role', 'user')
 
     if (q !== undefined) {
@@ -347,42 +307,10 @@ router.get('/learners', async (req, res) => {
       query = query.eq('class', learnerClass.trim())
     }
 
-    if (outstanding !== undefined && !['true', 'false'].includes(outstanding)) {
-      return res.status(400).json({ error: 'outstanding must be true or false.' })
-    }
-
     const { data: learners, error: learnerError } = await query.order('name', { ascending: true })
     if (learnerError) return fail(res, learnerError)
 
-    const allocationsByLearner = new Map()
-    if (learners.length) {
-      const { data: allocations, error: allocationError } = await supabase
-        .from('allocations')
-        .select('id, learner_id, textbook_id, issued_at, textbook:textbooks!allocations_textbook_id_fkey(book_number, title, subject)')
-        .in('learner_id', learners.map((learner) => learner.id))
-        .is('returned_at', null)
-      if (allocationError) return fail(res, allocationError)
-
-      for (const allocation of allocations) {
-        const learnerAllocations = allocationsByLearner.get(allocation.learner_id) || []
-        learnerAllocations.push({
-          id: allocation.id,
-          textbook_id: allocation.textbook_id,
-          issued_at: allocation.issued_at,
-          textbook: allocation.textbook,
-        })
-        allocationsByLearner.set(allocation.learner_id, learnerAllocations)
-      }
-    }
-
-    const results = learners
-      .map((learner) => ({
-        ...learner,
-        outstanding: allocationsByLearner.get(learner.id) || [],
-      }))
-      .filter((learner) => outstanding !== 'true' || learner.outstanding.length > 0)
-
-    return res.json({ learners: results })
+    return res.json({ learners })
   } catch (error) {
     return fail(res, error)
   }
@@ -430,7 +358,7 @@ router.delete('/learners/:id', async (req, res) => {
     if (!learner) return res.status(404).json({ error: 'Learner not found.' })
 
     const { count, error: historyError } = await supabase
-      .from('allocations')
+      .from('textbook_allocations')
       .select('id', { count: 'exact', head: true })
       .eq('learner_id', id)
     if (historyError) return fail(res, historyError)
@@ -458,24 +386,17 @@ router.delete('/learners/:id', async (req, res) => {
   }
 })
 
-// List allocations with related textbook and learner details and optional filters.
+// List allocation history with the related textbook title, subject, and grade.
 router.get('/allocations', async (req, res) => {
   try {
-    const { learner, bookNumber, subject, grade, status, outstanding } = req.query
-    let query = supabase.from('allocations').select(allocationSelect)
+    const { learnerId, subject, grade, outstanding } = req.query
+    let query = supabase.from('textbook_allocations').select(allocationSelect)
 
-    if (learner !== undefined) {
-      if (typeof learner !== 'string') return res.status(400).json({ error: 'learner must be text.' })
-      const search = clean(learner).trim()
-      if (search) query = query.ilike('learner.name', `%${search}%`)
-    }
-
-    if (bookNumber !== undefined) {
-      if (typeof bookNumber !== 'string') {
-        return res.status(400).json({ error: 'bookNumber must be text.' })
+    if (learnerId !== undefined) {
+      if (typeof learnerId !== 'string' || !learnerId.trim()) {
+        return res.status(400).json({ error: 'learnerId must be non-empty text.' })
       }
-      const search = clean(bookNumber).trim()
-      if (search) query = query.ilike('textbook.book_number', `%${search}%`)
+      query = query.eq('learner_id', learnerId.trim())
     }
 
     if (subject !== undefined) {
@@ -489,14 +410,7 @@ router.get('/allocations', async (req, res) => {
       if (typeof grade !== 'string' || !/^(8|9|10|11|12)$/.test(grade)) {
         return res.status(400).json({ error: 'grade must be an integer from 8 to 12.' })
       }
-      query = query.eq('learner.grade', Number(grade))
-    }
-
-    if (status !== undefined) {
-      if (typeof status !== 'string' || !allocationStatuses.includes(status)) {
-        return res.status(400).json({ error: `status must be one of: ${allocationStatuses.join(', ')}.` })
-      }
-      query = query.eq('status', status)
+      query = query.eq('textbook.grade', Number(grade))
     }
 
     if (outstanding !== undefined) {
@@ -509,7 +423,7 @@ router.get('/allocations', async (req, res) => {
       }
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false })
+    const { data, error } = await query.order('allocated_at', { ascending: false })
     if (error) return fail(res, error)
     return res.json({ allocations: data })
   } catch (error) {
@@ -517,64 +431,48 @@ router.get('/allocations', async (req, res) => {
   }
 })
 
-// Issue a textbook to a learner and record the admin who issued it.
+// Use the database function to allocate by textbook ID and return its allocation number.
 router.post('/allocations', async (req, res) => {
   const { data: input, error: validationError } = parseAllocationInput(req.body)
   if (validationError) return res.status(400).json({ error: validationError })
 
   try {
-    const { data: textbook, error: textbookError } = await supabase
-      .from('textbooks')
-      .select('id')
-      .eq('book_number', input.book_number)
-      .maybeSingle()
-    if (textbookError) return fail(res, textbookError)
-    if (!textbook) return res.status(404).json({ error: 'Textbook not found.' })
-
-    const { data: learner, error: learnerError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', input.learner_id)
-      .eq('role', 'user')
-      .maybeSingle()
-    if (learnerError) return fail(res, learnerError)
-    if (!learner) return res.status(404).json({ error: 'Learner not found.' })
-
-    const { data, error } = await supabase
-      .from('allocations')
-      .insert({
-        textbook_id: textbook.id,
-        learner_id: learner.id,
-        issued_by: req.user.id,
-        condition_issued: input.condition_issued,
-      })
-      .select(allocationSelect)
-      .single()
-    if (error) return allocationError(res, error)
-
-    await logActivity(req.user.id, 'issue', 'allocation', data.id, {
-      textbook_id: textbook.id,
-      learner_id: learner.id,
-      condition_issued: input.condition_issued,
+    const { data, error } = await supabase.rpc('allocate_textbook', {
+      p_textbook_id: input.textbook_id,
+      p_learner_id: input.learner_id,
     })
-    return res.status(201).json({ allocation: data })
+    if (error) return fail(res, error)
+
+    const allocation = getAllocationResult(data)
+    if (!allocation?.allocation_number) {
+      console.error('Allocation RPC response did not include allocation_number.')
+      return res.status(502).json({
+        error: 'The allocation was created, but no allocation number was returned.',
+      })
+    }
+
+    const allocationId = allocation.allocation_id ?? allocation.id ?? null
+    await logActivity(req.user.id, 'issue', 'allocation', allocationId, {
+      textbook_id: input.textbook_id,
+      learner_id: input.learner_id,
+      allocation_number: allocation.allocation_number,
+    })
+
+    return res.status(201).json({ allocation })
   } catch (error) {
     return fail(res, error)
   }
 })
 
-// Mark an outstanding allocation as returned and update the textbook condition.
+// Record the return timestamp while retaining the allocation history.
 router.put('/allocations/:id/return', async (req, res) => {
   const { id } = req.params
   if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
 
-  const { data: input, error: validationError } = parseAllocationReturnInput(req.body)
-  if (validationError) return res.status(400).json({ error: validationError })
-
   try {
     const { data: allocation, error: lookupError } = await supabase
-      .from('allocations')
-      .select('id, textbook_id, status, fee_status, returned_at')
+      .from('textbook_allocations')
+      .select('id, allocation_number, returned_at')
       .eq('id', id)
       .maybeSingle()
     if (lookupError) return fail(res, lookupError)
@@ -584,29 +482,17 @@ router.put('/allocations/:id/return', async (req, res) => {
     }
 
     const returnedAt = new Date().toISOString()
-    const status = allocation.status === 'lost' ? 'found' : 'returned'
-    const feeStatus = allocation.fee_status === 'paid'
-      ? 'refund_due'
-      : allocation.fee_status === 'owed'
-        ? 'none'
-        : allocation.fee_status
     const { data: updated, error: updateError } = await supabase
-      .from('allocations')
-      .update({
-        returned_at: returnedAt,
-        returned_by: req.user.id,
-        condition_returned: input.condition_returned,
-        status,
-        fee_status: feeStatus,
-      })
+      .from('textbook_allocations')
+      .update({ returned_at: returnedAt })
       .eq('id', id)
       .is('returned_at', null)
       .select('id')
       .maybeSingle()
-    if (updateError) return allocationError(res, updateError)
+    if (updateError) return fail(res, updateError)
     if (!updated) {
       const { data: current, error: currentError } = await supabase
-        .from('allocations')
+        .from('textbook_allocations')
         .select('id, returned_at')
         .eq('id', id)
         .maybeSingle()
@@ -616,27 +502,12 @@ router.put('/allocations/:id/return', async (req, res) => {
     }
 
     await logActivity(req.user.id, 'return', 'allocation', id, {
+      allocation_number: allocation.allocation_number,
       returned_at: returnedAt,
-      condition_returned: input.condition_returned,
-      status,
-      fee_status: feeStatus,
-    })
-
-    const { data: updatedTextbook, error: textbookUpdateError } = await supabase
-      .from('textbooks')
-      .update({ condition: input.condition_returned })
-      .eq('id', allocation.textbook_id)
-      .select('id')
-      .maybeSingle()
-    if (textbookUpdateError) return fail(res, textbookUpdateError)
-    if (!updatedTextbook) return fail(res, new Error('Textbook for allocation was not found.'))
-
-    await logActivity(req.user.id, 'update', 'textbook', allocation.textbook_id, {
-      condition: input.condition_returned,
     })
 
     const { data, error } = await supabase
-      .from('allocations')
+      .from('textbook_allocations')
       .select(allocationSelect)
       .eq('id', id)
       .single()
@@ -647,13 +518,13 @@ router.put('/allocations/:id/return', async (req, res) => {
   }
 })
 
-// Return counts for learners, textbooks, and currently outstanding allocations.
+// Return counts for learners, textbooks, and unreturned allocations.
 router.get('/summary', async (req, res) => {
   try {
     const [learners, textbooks, outstanding] = await Promise.all([
       supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'user'),
       supabase.from('textbooks').select('id', { count: 'exact', head: true }),
-      supabase.from('allocations').select('id', { count: 'exact', head: true }).is('returned_at', null),
+      supabase.from('textbook_allocations').select('id', { count: 'exact', head: true }).is('returned_at', null),
     ])
 
     const error = learners.error || textbooks.error || outstanding.error

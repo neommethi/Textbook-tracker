@@ -2,17 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import LearnerForm from '../components/LearnerForm'
 import LearnerList from '../components/LearnerList'
-import SummaryStrip from '../components/SummaryStrip'
 import TextbookForm from '../components/TextbookForm'
 import { apiFetch } from '../api'
 
 async function fetchDashboardData() {
-  const [learnerResult, allocationResult, summaryResult] =
-    await Promise.all([
-      apiFetch('/api/admin/learners'),
-      apiFetch('/api/admin/allocations'),
-      apiFetch('/api/admin/summary'),
-    ])
+  const [learnerResult, allocationResult] = await Promise.all([
+    apiFetch('/api/admin/learners'),
+    apiFetch('/api/admin/allocations'),
+  ])
 
   const allocationsByLearner = new Map()
   for (const allocation of allocationResult.allocations) {
@@ -20,12 +17,11 @@ async function fetchDashboardData() {
     const books = allocationsByLearner.get(allocation.learner_id) || []
     books.push({
       allocationId: allocation.id,
+      allocationNumber: allocation.allocation_number,
       textbookId: allocation.textbook_id,
-      bookNumber: textbook.book_number,
       title: textbook.title,
       subject: textbook.subject,
       grade: textbook.grade,
-      condition: textbook.condition,
       returned: allocation.returned_at !== null,
     })
     allocationsByLearner.set(allocation.learner_id, books)
@@ -36,18 +32,12 @@ async function fetchDashboardData() {
       ...learner,
       textbooks: allocationsByLearner.get(learner.id) || [],
     })),
-    summary: summaryResult,
   }
 }
 
 // Load and manage learners and their textbook allocations through the admin API.
 export default function AdminDashboard() {
   const [learners, setLearners] = useState([])
-  const [summary, setSummary] = useState({
-    learners: 0,
-    textbooks: 0,
-    outstanding: 0,
-  })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -56,9 +46,8 @@ export default function AdminDashboard() {
   const [actionError, setActionError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
 
-  const applyDashboardData = useCallback(({ learners: nextLearners, summary: nextSummary }) => {
+  const applyDashboardData = useCallback(({ learners: nextLearners }) => {
     setLearners(nextLearners)
-    setSummary(nextSummary)
   }, [])
 
   const loadDashboard = useCallback(async () => {
@@ -108,23 +97,25 @@ export default function AdminDashboard() {
       await apiFetch(`/api/admin/textbooks/${encodeURIComponent(activeForm.textbook.textbookId)}`, {
         method: 'PUT',
         body: {
-          book_number: values.bookNumber,
           title: values.title,
           subject: values.subject,
+          grade: values.grade,
         },
       })
     } else {
-      await apiFetch('/api/admin/allocations', {
+      const result = await apiFetch('/api/admin/allocations', {
         method: 'POST',
         body: {
           ...values,
           learner_id: activeForm.learner.id,
         },
       })
+      setSuccessMessage(
+        `Textbook allocated successfully. Allocation number: ${result.allocation.allocation_number}`,
+      )
     }
 
     setActiveForm(null)
-    if (activeForm.mode === 'add') setSuccessMessage('Textbook issued successfully.')
     setLoading(true)
     await loadDashboard()
   }
@@ -143,7 +134,6 @@ export default function AdminDashboard() {
           `/api/admin/allocations/${encodeURIComponent(pendingAction.allocationId)}/return`,
           {
             method: 'PUT',
-            body: { condition_returned: 'good' },
           },
         )
       }
@@ -168,11 +158,6 @@ export default function AdminDashboard() {
               New learner accounts can sign up through the learner portal.
             </p>
           </div>
-          <SummaryStrip
-            totalLearners={summary.learners}
-            totalTextbooks={summary.textbooks}
-            totalOutstanding={summary.outstanding}
-          />
         </header>
 
         {successMessage && (
@@ -234,7 +219,7 @@ export default function AdminDashboard() {
               setPendingAction({
                 type: 'textbook',
                 allocationId: textbook.allocationId,
-                itemDescription: `book ${textbook.bookNumber} (${textbook.subject})`,
+                itemDescription: `allocation ${textbook.allocationNumber} (${textbook.subject})`,
               })
             }}
           />
