@@ -35,6 +35,46 @@ async function fetchDashboardData() {
   }
 }
 
+function LearnerLoadingState() {
+  return (
+    <div
+      className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-2 text-sm text-slate-600" role="status">
+        <span
+          aria-hidden="true"
+          className="h-4 w-4 animate-spin rounded-full border-2 border-blue-700 border-t-transparent"
+        />
+        Fetching learners...
+      </div>
+      <div
+        className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        aria-hidden="true"
+      >
+        {[0, 1, 2].map((card) => (
+          <div
+            key={card}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          >
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+              <div className="h-7 w-20 animate-pulse rounded-full bg-slate-200" />
+            </div>
+            {[0, 1].map((row) => (
+              <div key={row} className="border-t border-slate-100 py-3">
+                <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
+                <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+              </div>
+            ))}
+            <div className="mt-3 h-10 w-20 animate-pulse rounded-lg bg-slate-200" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Load and manage learners and their textbook allocations through the admin API.
 export default function AdminDashboard() {
   const [learners, setLearners] = useState([])
@@ -167,9 +207,7 @@ export default function AdminDashboard() {
         )}
 
         {loading ? (
-          <p className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
-            Loading admin data...
-          </p>
+          <LearnerLoadingState />
         ) : loadError ? (
           <div className="rounded-xl border border-red-200 bg-white p-6" role="alert">
             <p className="text-sm text-red-700">{loadError}</p>

@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import StudentDashboard from './pages/StudentDashboard'
 import AdminDash from './pages/AdminDash'
+import AdminDataPage from './pages/AdminDataPage'
 import AdminLayout from './layouts/AdminLayout'
 import AdminPlaceholder from './pages/AdminPlaceholder'
 
@@ -22,15 +23,19 @@ export default function App() {
         <Route path="learners" element={<AdminDash />} />
         <Route
           path="textbooks"
-          element={<AdminPlaceholder title="Textbooks" />}
+          element={<AdminDataPage key="textbooks" pageKey="textbooks" />}
         />
         <Route
           path="issued"
-          element={<AdminPlaceholder title="Issued books" />}
+          element={<AdminDataPage key="issued" pageKey="issued" />}
+        />
+        <Route
+          path="returned"
+          element={<AdminDataPage key="returned" pageKey="returned" />}
         />
         <Route
           path="subjects"
-          element={<AdminPlaceholder title="Subjects" />}
+          element={<AdminDataPage key="subjects" pageKey="subjects" />}
         />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />

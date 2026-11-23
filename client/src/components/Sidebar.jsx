@@ -44,6 +44,16 @@ const navigationItems = [
     ),
   },
   {
+    label: 'Returned books',
+    to: '/admin/returned',
+    icon: (
+      <>
+        <path d="M4 5h16v14H4zM8 9h5" />
+        <path d="m9 15 2.5 2.5L17 12" />
+      </>
+    ),
+  },
+  {
     label: 'Subjects',
     to: '/admin/subjects',
     icon: (
