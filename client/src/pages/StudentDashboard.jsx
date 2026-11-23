@@ -1,71 +1,33 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-// Temporary frontend data for Phase 1.
-// Real learner records will come from the backend in Phase 2.
-const textbooks = [
-  {
-    id: 'TB-001',
-    subject: 'Mathematics',
-    title: 'Mathematics Grade 11',
-    returned: false,
-    conditionIssued: 'Good',
-    conditionReturned: null,
-    dateIssued: '2026-01-15',
-    dateReturned: null,
-  },
-  {
-    id: 'TB-002',
-    subject: 'English',
-    title: 'English Home Language',
-    returned: true,
-    conditionIssued: 'Good',
-    conditionReturned: 'Good',
-    dateIssued: '2026-01-15',
-    dateReturned: '2026-11-10',
-  },
-  {
-    id: 'TB-003',
-    subject: 'Life Sciences',
-    title: 'Life Sciences Grade 11',
-    returned: false,
-    conditionIssued: 'Fair',
-    conditionReturned: null,
-    dateIssued: '2026-01-16',
-    dateReturned: null,
-  },
-  {
-    id: 'TB-004',
-    subject: 'Geography',
-    title: 'Geography Grade 11',
-    returned: true,
-    conditionIssued: 'Good',
-    conditionReturned: 'Fair',
-    dateIssued: '2026-01-16',
-    dateReturned: '2026-11-12',
-  },
-  {
-    id: 'TB-005',
-    subject: 'Physical Sciences',
-    title: 'Physical Sciences Grade 11',
-    returned: false,
-    conditionIssued: 'Poor',
-    conditionReturned: null,
-    dateIssued: '2026-01-17',
-    dateReturned: null,
-  },
-]
+const API = 'http://localhost:3000'
 
 function formatDate(date) {
   if (!date) return 'Not recorded'
+
+  const parsedDate = new Date(date)
+  if (Number.isNaN(parsedDate.getTime())) return 'Not recorded'
 
   return new Intl.DateTimeFormat('en-ZA', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`))
+  }).format(parsedDate)
+}
+
+function formatCurrency(amount) {
+  if (amount === null || amount === undefined || amount === '') return 'Not recorded'
+
+  const value = Number(amount)
+  if (!Number.isFinite(value)) return 'Not recorded'
+
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+  }).format(value)
 }
 
 function ConditionBadge({ condition }) {
@@ -95,39 +57,159 @@ function ConditionBadge({ condition }) {
   )
 }
 
+function ReturnStatusBadge({ status }) {
+  const styles = {
+    issued: 'border-blue-200 bg-blue-50 text-blue-700',
+    returned: 'border-green-200 bg-green-50 text-green-700',
+    lost: 'border-red-200 bg-red-50 text-red-700',
+    found: 'border-violet-200 bg-violet-50 text-violet-700',
+    damaged: 'border-orange-200 bg-orange-50 text-orange-700',
+  }
+  const labels = {
+    issued: 'Issued',
+    returned: 'Returned',
+    lost: 'Lost',
+    found: 'Found',
+    damaged: 'Damaged',
+  }
+
+  return (
+    <span
+      className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+        styles[status] || 'border-slate-200 bg-slate-100 text-slate-700'
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          status === 'returned' ? 'bg-green-600'
+            : status === 'lost' ? 'bg-red-600'
+              : status === 'found' ? 'bg-violet-600'
+                : status === 'damaged' ? 'bg-orange-600'
+                  : status === 'issued' ? 'bg-blue-600'
+                    : 'bg-slate-500'
+        }`}
+        aria-hidden="true"
+      />
+      {labels[status] || (status ? `${status[0].toUpperCase()}${status.slice(1)}` : 'Unknown')}
+    </span>
+  )
+}
+
 export default function StudentDashboard() {
   const navigate = useNavigate()
 
+  const [textbooks, setTextbooks] = useState([])
+  const [loadState, setLoadState] = useState('loading')
+  const [loadError, setLoadError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
 
-  const returned = textbooks.filter(book => book.returned).length
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadTextbooks() {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoadState('expired')
+        return
+      }
+
+      setLoadState('loading')
+      setLoadError('')
+
+      try {
+        const response = await fetch(`${API}/api/learner/me/textbooks`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+
+        if (response.status === 401) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setLoadState('expired')
+          return
+        }
+
+        let payload
+        try {
+          payload = await response.json()
+        } catch {
+          throw new Error('The server returned an invalid response.')
+        }
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Unable to load your textbooks.')
+        }
+        if (!Array.isArray(payload.textbooks)) {
+          throw new Error('The server returned an unexpected textbook list.')
+        }
+
+        setTextbooks(payload.textbooks.map((book, index) => {
+          const status = String(book.status || (book.returned_at ? 'returned' : 'issued'))
+            .trim()
+            .toLowerCase()
+
+          return {
+            id: `${book.book_number || 'book'}-${book.issued_at || 'allocation'}-${index}`,
+            bookNumber: book.book_number,
+            title: book.title,
+            subject: book.subject,
+            condition: book.condition,
+            conditionIssued: book.condition_issued,
+            conditionReturned: book.condition_returned,
+            dateIssued: book.issued_at,
+            dateReturned: book.returned_at,
+            status,
+            lostAt: book.lost_at,
+            feeAmount: book.fee_amount,
+            feeStatus: book.fee_status,
+          }
+        }))
+        setLoadState('ready')
+      } catch (error) {
+        if (error.name === 'AbortError') return
+        setLoadError(error.message || 'Could not reach the server. Please try again.')
+        setLoadState('error')
+      }
+    }
+
+    loadTextbooks()
+    return () => controller.abort()
+  }, [retryCount])
+
+  const returned = textbooks.filter(book => book.status === 'returned').length
   const outstanding = textbooks.length - returned
 
   const filteredBooks = textbooks.filter(book => {
     const matchesSearch =
-      `${book.subject} ${book.title} ${book.id}`
+      `${book.subject} ${book.title} ${book.bookNumber} ${book.status}`
         .toLowerCase()
         .includes(search.toLowerCase())
 
     const matchesFilter =
       filter === 'all' ||
-      (filter === 'returned' && book.returned) ||
-      (filter === 'outstanding' && !book.returned)
+      (filter === 'returned' && book.status === 'returned') ||
+      (filter === 'outstanding' && book.status !== 'returned')
 
     return matchesSearch && matchesFilter
   })
 
   const handleLogout = () => {
-    // Frontend-only navigation for Phase 1.
-    // Backend logout will be implemented in Phase 2.
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
     navigate('/login', { replace: true })
+  }
+
+  const handleRetry = () => {
+    setLoadState('loading')
+    setRetryCount(count => count + 1)
   }
 
   const stats = [
     {
       label: 'Total Textbooks',
-      value: textbooks.length,
+      value: loadState === 'ready' ? textbooks.length : '—',
       description: 'Books allocated to you',
       color: 'text-blue-700',
       background: 'bg-blue-50',
@@ -140,7 +222,7 @@ export default function StudentDashboard() {
     },
     {
       label: 'Returned',
-      value: returned,
+      value: loadState === 'ready' ? returned : '—',
       description: 'Successfully handed back',
       color: 'text-green-700',
       background: 'bg-green-50',
@@ -153,8 +235,8 @@ export default function StudentDashboard() {
     },
     {
       label: 'Outstanding',
-      value: outstanding,
-      description: 'Still in your care',
+      value: loadState === 'ready' ? outstanding : '—',
+      description: 'Not marked as returned',
       color: 'text-amber-700',
       background: 'bg-amber-50',
       icon: (
@@ -267,7 +349,9 @@ export default function StudentDashboard() {
                 </p>
               </div>
               <p className="mt-2 text-xs font-medium text-slate-500 sm:mt-0">
-                Showing {filteredBooks.length} of {textbooks.length} books
+                {loadState === 'ready'
+                  ? `Showing ${filteredBooks.length} of ${textbooks.length} books`
+                  : loadState === 'loading' ? 'Loading your allocation...' : 'Allocation unavailable'}
               </p>
             </div>
           </div>
@@ -305,7 +389,47 @@ export default function StudentDashboard() {
           </div>
 
           <div className="space-y-3 p-4 sm:space-y-4 sm:p-5">
-            {filteredBooks.map(book => (
+            {loadState === 'loading' ? (
+              <div role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-12 text-center">
+                <span className="mx-auto mb-3 block h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" aria-hidden="true" />
+                <p className="font-semibold text-slate-800">Loading your textbooks</p>
+                <p className="mt-1 text-sm text-slate-500">Please wait while we retrieve your allocation.</p>
+              </div>
+            ) : loadState === 'expired' ? (
+              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center">
+                <p className="font-semibold text-amber-900">Your session has expired</p>
+                <p className="mt-1 text-sm text-amber-800">Please log in again to view your textbooks.</p>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                >
+                  Return to login
+                </button>
+              </div>
+            ) : loadState === 'error' ? (
+              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-10 text-center">
+                <p className="font-semibold text-red-900">We couldn’t load your textbooks</p>
+                <p className="mt-1 text-sm text-red-800">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : textbooks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 px-4 py-12 text-center">
+                <p className="font-semibold text-slate-800">No textbooks assigned yet</p>
+                <p className="mt-1 text-sm text-slate-500">Your allocations will appear here once they are assigned.</p>
+              </div>
+            ) : filteredBooks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 px-4 py-12 text-center">
+                <p className="font-semibold text-slate-800">No textbooks found</p>
+                <p className="mt-1 text-sm text-slate-500">Try changing your search or filter.</p>
+              </div>
+            ) : filteredBooks.map(book => (
               <article
                 key={book.id}
                 className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-blue-200 sm:p-5"
@@ -319,16 +443,7 @@ export default function StudentDashboard() {
                       {book.title}
                     </h4>
                   </div>
-                  <span
-                    className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                      book.returned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-800'
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${book.returned ? 'bg-green-600' : 'bg-amber-600'}`} aria-hidden="true" />
-                    {book.returned ? 'Returned' : 'Outstanding'}
-                  </span>
+                  <ReturnStatusBadge status={book.status} />
                 </div>
 
                 <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
@@ -336,11 +451,17 @@ export default function StudentDashboard() {
                     Book number
                   </span>
                   <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-semibold text-slate-700">
-                    {book.id}
+                    {book.bookNumber || 'Not recorded'}
                   </span>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="min-w-0">
+                    <dt className="mb-2 text-xs font-semibold text-slate-500">
+                      Textbook condition
+                    </dt>
+                    <dd><ConditionBadge condition={book.condition} /></dd>
+                  </div>
                   <div className="min-w-0">
                     <dt className="mb-2 text-xs font-semibold text-slate-500">
                       Condition when issued
@@ -370,25 +491,43 @@ export default function StudentDashboard() {
                     </dd>
                   </div>
                 </dl>
+
+                {(book.lostAt || book.feeAmount !== null && book.feeAmount !== undefined || book.feeStatus) && (
+                  <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {book.lostAt && (
+                      <div>
+                        <dt className="mb-2 text-xs font-semibold text-slate-500">
+                          Date reported lost
+                        </dt>
+                        <dd className="text-sm font-semibold text-slate-800">
+                          {formatDate(book.lostAt)}
+                        </dd>
+                      </div>
+                    )}
+                    {(book.feeAmount !== null && book.feeAmount !== undefined) && (
+                      <div>
+                        <dt className="mb-2 text-xs font-semibold text-slate-500">
+                          Fee amount
+                        </dt>
+                        <dd className="text-sm font-semibold text-slate-800">
+                          {formatCurrency(book.feeAmount)}
+                        </dd>
+                      </div>
+                    )}
+                    {book.feeStatus && (
+                      <div>
+                        <dt className="mb-2 text-xs font-semibold text-slate-500">
+                          Fee status
+                        </dt>
+                        <dd className="text-sm font-semibold capitalize text-slate-800">
+                          {book.feeStatus}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
               </article>
             ))}
-
-            {filteredBooks.length === 0 && (
-              <div className="rounded-xl border border-dashed border-slate-300 px-4 py-12 text-center">
-                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-                    <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" strokeWidth="1.8" />
-                    <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-slate-800">
-                  No textbooks found
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Try changing your search or filter.
-                </p>
-              </div>
-            )}
           </div>
         </section>
 
