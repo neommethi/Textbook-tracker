@@ -16,7 +16,7 @@ export default function LearnerManagementModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
       <section
         aria-labelledby="learner-management-title"
         aria-modal="true"
