@@ -6,7 +6,7 @@ import StudentDashboard from './pages/StudentDashboard'
 import AdminDash from './pages/AdminDash'
 import AdminDataPage from './pages/AdminDataPage'
 import AdminLayout from './layouts/AdminLayout'
-import AdminPlaceholder from './pages/AdminPlaceholder'
+import AdminOverview from './pages/AdminOverview'
 
 export default function App() {
   return (
@@ -19,7 +19,7 @@ export default function App() {
       />
       {/* Keep admin routes together so one layout protects the whole section. */}
       <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminPlaceholder title="Dashboard" />} />
+        <Route index element={<AdminOverview />} />
         <Route path="learners" element={<AdminDash />} />
         <Route path="learners/:learnerId" element={<AdminDash />} />
         <Route

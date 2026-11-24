@@ -518,22 +518,26 @@ router.put('/allocations/:id/return', async (req, res) => {
   }
 })
 
-// Return counts for learners, textbooks, and unreturned allocations.
+// Return dashboard counts for learners, textbooks, and allocation history.
 router.get('/summary', async (req, res) => {
   try {
-    const [learners, textbooks, outstanding] = await Promise.all([
+    const [learners, textbooks, outstanding, returned, subjects] = await Promise.all([
       supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'user'),
       supabase.from('textbooks').select('id', { count: 'exact', head: true }),
       supabase.from('textbook_allocations').select('id', { count: 'exact', head: true }).is('returned_at', null),
+      supabase.from('textbook_allocations').select('id', { count: 'exact', head: true }).not('returned_at', 'is', null),
+      supabase.from('subjects').select('name', { count: 'exact', head: true }),
     ])
 
-    const error = learners.error || textbooks.error || outstanding.error
+    const error = learners.error || textbooks.error || outstanding.error || returned.error || subjects.error
     if (error) return fail(res, error)
 
     return res.json({
       learners: learners.count,
       textbooks: textbooks.count,
       outstanding: outstanding.count,
+      returned: returned.count,
+      subjects: subjects.count,
     })
   } catch (error) {
     return fail(res, error)
