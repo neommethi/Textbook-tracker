@@ -3,11 +3,6 @@ import LearnerCard from './LearnerCard'
 // Render learner cards and pass their management actions through.
 export default function LearnerList({
   learners,
-  onEditLearner,
-  onDeleteLearner,
-  onAddTextbook,
-  onEditTextbook,
-  onReturnTextbook,
 }) {
   if (learners.length === 0) {
     return (
@@ -23,11 +18,6 @@ export default function LearnerList({
         <LearnerCard
           key={learner.id}
           learner={learner}
-          onEditLearner={() => onEditLearner(learner)}
-          onDeleteLearner={() => onDeleteLearner(learner)}
-          onAddTextbook={() => onAddTextbook(learner.id)}
-          onEditTextbook={onEditTextbook}
-          onReturnTextbook={onReturnTextbook}
         />
       ))}
     </div>

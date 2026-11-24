@@ -12,14 +12,17 @@ export default function TextbookRow({
   return (
     <li className="flex flex-col gap-3 border-t border-slate-100 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <span className="mr-2 font-mono text-xs text-slate-500">
+        <p className="truncate font-mono text-xs text-slate-500">
           Allocation {textbook.allocationNumber}
-        </span>
-        <span className="break-words text-sm font-medium text-slate-800">
+        </p>
+        <p className="truncate text-sm font-medium text-slate-800">
           {textbook.title}
-        </span>
-        <p className="mt-1 text-sm text-slate-600">
-          {textbook.subject} · Grade {textbook.grade}
+        </p>
+        <p className="truncate text-sm text-slate-600">
+          {textbook.subject}
+        </p>
+        <p className="truncate text-sm text-slate-600">
+          Grade {textbook.grade}
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">

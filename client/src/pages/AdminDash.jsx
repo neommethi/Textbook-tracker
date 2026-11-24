@@ -4,6 +4,8 @@ import LearnerForm from '../components/LearnerForm'
 import LearnerList from '../components/LearnerList'
 import TextbookForm from '../components/TextbookForm'
 import { apiFetch } from '../api'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import LearnerDetailPage from './LearnerDetailPage'
 
 async function fetchDashboardData() {
   const [learnerResult, allocationResult] = await Promise.all([
@@ -77,6 +79,8 @@ function LearnerLoadingState() {
 
 // Load and manage learners and their textbook allocations through the admin API.
 export default function AdminDashboard() {
+  const { learnerId } = useParams()
+  const navigate = useNavigate()
   const [learners, setLearners] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -179,6 +183,9 @@ export default function AdminDashboard() {
       }
 
       setPendingAction(null)
+      if (pendingAction.type === 'learner') {
+        navigate('/admin/learners')
+      }
       setLoading(true)
       await loadDashboard()
     } catch (error) {
@@ -188,17 +195,21 @@ export default function AdminDashboard() {
     }
   }
 
+  const selectedLearner = learners.find((learner) => learner.id === learnerId)
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Admin dashboard</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              New learner accounts can sign up through the learner portal.
-            </p>
-          </div>
-        </header>
+        {!learnerId && (
+          <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Admin dashboard</h1>
+              <p className="mt-1 text-sm text-slate-600">
+                New learner accounts can sign up through the learner portal.
+              </p>
+            </div>
+          </header>
+        )}
 
         {successMessage && (
           <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800" role="status">
@@ -222,10 +233,22 @@ export default function AdminDashboard() {
               Try again
             </button>
           </div>
-        ) : (
-          <LearnerList
-            learners={learners}
-            onEditLearner={(learner) => setActiveForm({ type: 'learner', learner })}
+        ) : learnerId && !selectedLearner ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <p className="text-slate-700">Learner not found.</p>
+            <Link
+              to="/admin/learners"
+              className="mt-3 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
+            >
+              Back to learners
+            </Link>
+          </div>
+        ) : learnerId ? (
+          <LearnerDetailPage
+            learner={selectedLearner}
+            onEditLearner={(learner) =>
+              setActiveForm({ type: 'learner', learner })
+            }
             onDeleteLearner={(learner) => {
               setActionError('')
               setPendingAction({
@@ -234,21 +257,19 @@ export default function AdminDashboard() {
                 itemDescription: `${learner.name} (Grade ${learner.grade})`,
               })
             }}
-            onAddTextbook={(learnerId) =>
-              {
-                setSuccessMessage('')
-                setActiveForm({
-                  type: 'textbook',
-                  mode: 'add',
-                  learner: learners.find((learner) => learner.id === learnerId),
-                })
-              }
-            }
-            onEditTextbook={(learnerId, textbook) =>
+            onAddTextbook={(selectedId) => {
+              setSuccessMessage('')
+              setActiveForm({
+                type: 'textbook',
+                mode: 'add',
+                learner: learners.find((learner) => learner.id === selectedId),
+              })
+            }}
+            onEditTextbook={(selectedId, textbook) =>
               setActiveForm({
                 type: 'textbook',
                 mode: 'edit',
-                learnerId,
+                learner: learners.find((learner) => learner.id === selectedId),
                 textbook,
               })
             }
@@ -261,6 +282,8 @@ export default function AdminDashboard() {
               })
             }}
           />
+        ) : (
+          <LearnerList learners={learners} />
         )}
       </div>
 

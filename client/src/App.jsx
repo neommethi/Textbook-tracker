@@ -21,6 +21,7 @@ export default function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminPlaceholder title="Dashboard" />} />
         <Route path="learners" element={<AdminDash />} />
+        <Route path="learners/:learnerId" element={<AdminDash />} />
         <Route
           path="textbooks"
           element={<AdminDataPage key="textbooks" pageKey="textbooks" />}

@@ -79,7 +79,7 @@ const pages = {
             ? '—'
             : `Grade ${allocation.textbook.grade}`,
       },
-      { label: 'Learner ID', render: (allocation) => allocation.learner_id },
+      { label: 'Learner', render: (allocation) => allocation.learner_name ?? 'Unknown learner' },
       {
         label: 'Allocated',
         render: (allocation) => formatDate(allocation.allocated_at),
@@ -110,30 +110,48 @@ export default function AdminDataPage({ pageKey }) {
     if (!page) return undefined
 
     let active = true
-    apiFetch(page.endpoint)
-      .then((response) => {
+    async function loadPage() {
+      try {
+        const response = await apiFetch(page.endpoint)
         const data = response[page.resultKey]
         if (!Array.isArray(data)) {
           throw new Error(`The server returned an invalid ${page.title.toLowerCase()} list.`)
         }
+
+        let rowsWithLearnerNames = data
+        if (pageKey === 'returned') {
+          const learnerResponse = await apiFetch('/api/admin/learners')
+          if (!Array.isArray(learnerResponse.learners)) {
+            throw new Error('The server returned an invalid learners list.')
+          }
+          const learnerNames = new Map(
+            learnerResponse.learners.map((learner) => [learner.id, learner.name]),
+          )
+          rowsWithLearnerNames = data.map((allocation) => ({
+            ...allocation,
+            learner_name: learnerNames.get(allocation.learner_id) || 'Unknown learner',
+          }))
+        }
+
         if (active) {
-          setRows(data)
+          setRows(rowsWithLearnerNames)
           setError('')
         }
-      })
-      .catch((requestError) => {
+      } catch (requestError) {
         if (active) {
           setError(requestError.message || `Could not load ${page.title.toLowerCase()}.`)
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false)
-      })
+      }
+    }
+
+    loadPage()
 
     return () => {
       active = false
     }
-  }, [page, reloadCount])
+  }, [page, pageKey, reloadCount])
 
   function handleRetry() {
     setLoading(true)
