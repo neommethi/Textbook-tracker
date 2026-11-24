@@ -1,4 +1,4 @@
-// Show textbook details and its available management actions.
+// Show an allocation's number and textbook details with its management actions.
 export default function TextbookRow({
   textbook,
   showActions = false,
@@ -12,12 +12,18 @@ export default function TextbookRow({
   return (
     <li className="flex flex-col gap-3 border-t border-slate-100 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <span className="mr-2 font-mono text-xs text-slate-500">
-          {textbook.bookNumber}
-        </span>
-        <span className="break-words text-sm text-slate-700">
+        <p className="truncate font-mono text-xs text-slate-500">
+          Allocation {textbook.allocationNumber}
+        </p>
+        <p className="truncate text-sm font-medium text-slate-800">
+          {textbook.title}
+        </p>
+        <p className="truncate text-sm text-slate-600">
           {textbook.subject}
-        </span>
+        </p>
+        <p className="truncate text-sm text-slate-600">
+          Grade {textbook.grade}
+        </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
         <span

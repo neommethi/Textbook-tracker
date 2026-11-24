@@ -16,13 +16,13 @@ function fail(res, error) {
   return res.status(500).json({ error: 'Internal server error' })
 }
 
-// List this learner's allocations and textbook details, optionally filtered by status.
+// List this learner's allocation records and related textbook details.
 router.get('/books', async (req, res) => {
   try {
     const { outstanding } = req.query
     let query = supabase
-      .from('allocations')
-      .select('id, status, issued_at, condition_issued, returned_at, condition_returned, fee_amount, fee_status, textbook:textbooks!allocations_textbook_id_fkey(book_number, title, subject, grade, condition)')
+      .from('textbook_allocations')
+      .select('id, allocation_number, textbook_id, learner_id, allocated_at, returned_at, textbook:textbooks!textbook_allocations_textbook_id_fkey(title, subject, grade)')
       .eq('learner_id', req.user.id)
 
     if (outstanding !== undefined) {
@@ -35,7 +35,7 @@ router.get('/books', async (req, res) => {
       }
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false })
+    const { data, error } = await query.order('allocated_at', { ascending: false })
     if (error) return fail(res, error)
     return res.json({ books: data })
   } catch (error) {
@@ -48,16 +48,16 @@ router.get('/summary', async (req, res) => {
   try {
     const [total, outstanding, returned] = await Promise.all([
       supabase
-        .from('allocations')
+        .from('textbook_allocations')
         .select('id', { count: 'exact', head: true })
         .eq('learner_id', req.user.id),
       supabase
-        .from('allocations')
+        .from('textbook_allocations')
         .select('id', { count: 'exact', head: true })
         .eq('learner_id', req.user.id)
         .is('returned_at', null),
       supabase
-        .from('allocations')
+        .from('textbook_allocations')
         .select('id', { count: 'exact', head: true })
         .eq('learner_id', req.user.id)
         .not('returned_at', 'is', null),

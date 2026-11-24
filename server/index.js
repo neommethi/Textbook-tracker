@@ -11,6 +11,10 @@ import learnerDashboardRoutes from './routes/learner.js'
 
 import { requireAuth, requireAdmin } from './middleware/auth.js'
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('Missing JWT_SECRET in server/.env')
+}
+
 const app = express()
 
 app.use(cors())

@@ -2,17 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import LearnerForm from '../components/LearnerForm'
 import LearnerList from '../components/LearnerList'
-import SummaryStrip from '../components/SummaryStrip'
 import TextbookForm from '../components/TextbookForm'
 import { apiFetch } from '../api'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import LearnerDetailPage from './LearnerDetailPage'
 
 async function fetchDashboardData() {
-  const [learnerResult, allocationResult, summaryResult] =
-    await Promise.all([
-      apiFetch('/api/admin/learners'),
-      apiFetch('/api/admin/allocations'),
-      apiFetch('/api/admin/summary'),
-    ])
+  const [learnerResult, allocationResult] = await Promise.all([
+    apiFetch('/api/admin/learners'),
+    apiFetch('/api/admin/allocations'),
+  ])
 
   const allocationsByLearner = new Map()
   for (const allocation of allocationResult.allocations) {
@@ -20,12 +19,11 @@ async function fetchDashboardData() {
     const books = allocationsByLearner.get(allocation.learner_id) || []
     books.push({
       allocationId: allocation.id,
+      allocationNumber: allocation.allocation_number,
       textbookId: allocation.textbook_id,
-      bookNumber: textbook.book_number,
       title: textbook.title,
       subject: textbook.subject,
       grade: textbook.grade,
-      condition: textbook.condition,
       returned: allocation.returned_at !== null,
     })
     allocationsByLearner.set(allocation.learner_id, books)
@@ -36,18 +34,54 @@ async function fetchDashboardData() {
       ...learner,
       textbooks: allocationsByLearner.get(learner.id) || [],
     })),
-    summary: summaryResult,
   }
+}
+
+function LearnerLoadingState() {
+  return (
+    <div
+      className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-2 text-sm text-slate-600" role="status">
+        <span
+          aria-hidden="true"
+          className="h-4 w-4 animate-spin rounded-full border-2 border-blue-700 border-t-transparent"
+        />
+        Fetching learners...
+      </div>
+      <div
+        className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        aria-hidden="true"
+      >
+        {[0, 1, 2].map((card) => (
+          <div
+            key={card}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          >
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+              <div className="h-7 w-20 animate-pulse rounded-full bg-slate-200" />
+            </div>
+            {[0, 1].map((row) => (
+              <div key={row} className="border-t border-slate-100 py-3">
+                <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
+                <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+              </div>
+            ))}
+            <div className="mt-3 h-10 w-20 animate-pulse rounded-lg bg-slate-200" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // Load and manage learners and their textbook allocations through the admin API.
 export default function AdminDashboard() {
+  const { learnerId } = useParams()
+  const navigate = useNavigate()
   const [learners, setLearners] = useState([])
-  const [summary, setSummary] = useState({
-    learners: 0,
-    textbooks: 0,
-    outstanding: 0,
-  })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -56,9 +90,8 @@ export default function AdminDashboard() {
   const [actionError, setActionError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
 
-  const applyDashboardData = useCallback(({ learners: nextLearners, summary: nextSummary }) => {
+  const applyDashboardData = useCallback(({ learners: nextLearners }) => {
     setLearners(nextLearners)
-    setSummary(nextSummary)
   }, [])
 
   const loadDashboard = useCallback(async () => {
@@ -108,23 +141,25 @@ export default function AdminDashboard() {
       await apiFetch(`/api/admin/textbooks/${encodeURIComponent(activeForm.textbook.textbookId)}`, {
         method: 'PUT',
         body: {
-          book_number: values.bookNumber,
           title: values.title,
           subject: values.subject,
+          grade: values.grade,
         },
       })
     } else {
-      await apiFetch('/api/admin/allocations', {
+      const result = await apiFetch('/api/admin/allocations', {
         method: 'POST',
         body: {
           ...values,
           learner_id: activeForm.learner.id,
         },
       })
+      setSuccessMessage(
+        `Textbook allocated successfully. Allocation number: ${result.allocation.allocation_number}`,
+      )
     }
 
     setActiveForm(null)
-    if (activeForm.mode === 'add') setSuccessMessage('Textbook issued successfully.')
     setLoading(true)
     await loadDashboard()
   }
@@ -143,12 +178,14 @@ export default function AdminDashboard() {
           `/api/admin/allocations/${encodeURIComponent(pendingAction.allocationId)}/return`,
           {
             method: 'PUT',
-            body: { condition_returned: 'good' },
           },
         )
       }
 
       setPendingAction(null)
+      if (pendingAction.type === 'learner') {
+        navigate('/admin/learners')
+      }
       setLoading(true)
       await loadDashboard()
     } catch (error) {
@@ -158,22 +195,21 @@ export default function AdminDashboard() {
     }
   }
 
+  const selectedLearner = learners.find((learner) => learner.id === learnerId)
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Admin dashboard</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              New learner accounts can sign up through the learner portal.
-            </p>
-          </div>
-          <SummaryStrip
-            totalLearners={summary.learners}
-            totalTextbooks={summary.textbooks}
-            totalOutstanding={summary.outstanding}
-          />
-        </header>
+        {!learnerId && (
+          <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Admin dashboard</h1>
+              <p className="mt-1 text-sm text-slate-600">
+                New learner accounts can sign up through the learner portal.
+              </p>
+            </div>
+          </header>
+        )}
 
         {successMessage && (
           <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800" role="status">
@@ -182,9 +218,7 @@ export default function AdminDashboard() {
         )}
 
         {loading ? (
-          <p className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
-            Loading admin data...
-          </p>
+          <LearnerLoadingState />
         ) : loadError ? (
           <div className="rounded-xl border border-red-200 bg-white p-6" role="alert">
             <p className="text-sm text-red-700">{loadError}</p>
@@ -199,10 +233,22 @@ export default function AdminDashboard() {
               Try again
             </button>
           </div>
-        ) : (
-          <LearnerList
-            learners={learners}
-            onEditLearner={(learner) => setActiveForm({ type: 'learner', learner })}
+        ) : learnerId && !selectedLearner ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <p className="text-slate-700">Learner not found.</p>
+            <Link
+              to="/admin/learners"
+              className="mt-3 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
+            >
+              Back to learners
+            </Link>
+          </div>
+        ) : learnerId ? (
+          <LearnerDetailPage
+            learner={selectedLearner}
+            onEditLearner={(learner) =>
+              setActiveForm({ type: 'learner', learner })
+            }
             onDeleteLearner={(learner) => {
               setActionError('')
               setPendingAction({
@@ -211,21 +257,19 @@ export default function AdminDashboard() {
                 itemDescription: `${learner.name} (Grade ${learner.grade})`,
               })
             }}
-            onAddTextbook={(learnerId) =>
-              {
-                setSuccessMessage('')
-                setActiveForm({
-                  type: 'textbook',
-                  mode: 'add',
-                  learner: learners.find((learner) => learner.id === learnerId),
-                })
-              }
-            }
-            onEditTextbook={(learnerId, textbook) =>
+            onAddTextbook={(selectedId) => {
+              setSuccessMessage('')
+              setActiveForm({
+                type: 'textbook',
+                mode: 'add',
+                learner: learners.find((learner) => learner.id === selectedId),
+              })
+            }}
+            onEditTextbook={(selectedId, textbook) =>
               setActiveForm({
                 type: 'textbook',
                 mode: 'edit',
-                learnerId,
+                learner: learners.find((learner) => learner.id === selectedId),
                 textbook,
               })
             }
@@ -234,10 +278,12 @@ export default function AdminDashboard() {
               setPendingAction({
                 type: 'textbook',
                 allocationId: textbook.allocationId,
-                itemDescription: `book ${textbook.bookNumber} (${textbook.subject})`,
+                itemDescription: `allocation ${textbook.allocationNumber} (${textbook.subject})`,
               })
             }}
           />
+        ) : (
+          <LearnerList learners={learners} />
         )}
       </div>
 

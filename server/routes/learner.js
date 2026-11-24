@@ -14,24 +14,18 @@ function requireLearner(req, res, next) {
 router.get('/me/textbooks', requireAuth, requireLearner, async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('allocations')
+      .from('textbook_allocations')
       .select(`
-        issued_at,
-        condition_issued,
-        status,
+        id,
+        allocation_number,
+        textbook_id,
+        learner_id,
+        allocated_at,
         returned_at,
-        condition_returned,
-        lost_at,
-        fee_amount,
-        fee_status,
-        textbook:textbooks (
-          book_number,
-          title,
-          subject,
-          condition
-        )
+        textbook:textbooks!textbook_allocations_textbook_id_fkey(title, subject, grade)
       `)
       .eq('learner_id', req.user.id)
+      .order('allocated_at', { ascending: false })
 
     if (error) {
       console.error('Failed to retrieve learner textbook allocations:', error)
@@ -39,18 +33,14 @@ router.get('/me/textbooks', requireAuth, requireLearner, async (req, res) => {
     }
 
     const textbooks = data.map(allocation => ({
-      book_number: allocation.textbook?.book_number ?? null,
+      id: allocation.id,
+      allocation_number: allocation.allocation_number,
+      textbook_id: allocation.textbook_id,
       title: allocation.textbook?.title ?? null,
       subject: allocation.textbook?.subject ?? null,
-      condition: allocation.textbook?.condition ?? null,
-      condition_issued: allocation.condition_issued,
-      condition_returned: allocation.condition_returned,
-      issued_at: allocation.issued_at,
+      grade: allocation.textbook?.grade ?? null,
+      allocated_at: allocation.allocated_at,
       returned_at: allocation.returned_at,
-      status: allocation.status,
-      lost_at: allocation.lost_at,
-      fee_amount: allocation.fee_amount,
-      fee_status: allocation.fee_status,
     }))
 
     return res.json({ textbooks })

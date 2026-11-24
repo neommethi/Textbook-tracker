@@ -18,59 +18,14 @@ function formatDate(date) {
   }).format(parsedDate)
 }
 
-function formatCurrency(amount) {
-  if (amount === null || amount === undefined || amount === '') return 'Not recorded'
-
-  const value = Number(amount)
-  if (!Number.isFinite(value)) return 'Not recorded'
-
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(value)
-}
-
-function ConditionBadge({ condition }) {
-  const styles = {
-    Good: 'border-green-200 bg-green-50 text-green-700',
-    Fair: 'border-amber-200 bg-amber-50 text-amber-700',
-    Poor: 'border-orange-200 bg-orange-50 text-orange-700',
-    Damaged: 'border-red-200 bg-red-50 text-red-700',
-  }
-
-  if (!condition) {
-    return (
-      <span className="text-sm font-medium text-slate-400">
-        Not recorded
-      </span>
-    )
-  }
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-        styles[condition] || 'border-slate-200 bg-slate-100 text-slate-700'
-      }`}
-    >
-      {condition}
-    </span>
-  )
-}
-
 function ReturnStatusBadge({ status }) {
   const styles = {
     issued: 'border-blue-200 bg-blue-50 text-blue-700',
     returned: 'border-green-200 bg-green-50 text-green-700',
-    lost: 'border-red-200 bg-red-50 text-red-700',
-    found: 'border-violet-200 bg-violet-50 text-violet-700',
-    damaged: 'border-orange-200 bg-orange-50 text-orange-700',
   }
   const labels = {
     issued: 'Issued',
     returned: 'Returned',
-    lost: 'Lost',
-    found: 'Found',
-    damaged: 'Damaged',
   }
 
   return (
@@ -82,11 +37,7 @@ function ReturnStatusBadge({ status }) {
       <span
         className={`h-1.5 w-1.5 rounded-full ${
           status === 'returned' ? 'bg-green-600'
-            : status === 'lost' ? 'bg-red-600'
-              : status === 'found' ? 'bg-violet-600'
-                : status === 'damaged' ? 'bg-orange-600'
-                  : status === 'issued' ? 'bg-blue-600'
-                    : 'bg-slate-500'
+            : 'bg-blue-600'
         }`}
         aria-hidden="true"
       />
@@ -145,25 +96,16 @@ export default function StudentDashboard() {
           throw new Error('The server returned an unexpected textbook list.')
         }
 
-        setTextbooks(payload.textbooks.map((book, index) => {
-          const status = String(book.status || (book.returned_at ? 'returned' : 'issued'))
-            .trim()
-            .toLowerCase()
-
+        setTextbooks(payload.textbooks.map((book) => {
           return {
-            id: `${book.book_number || 'book'}-${book.issued_at || 'allocation'}-${index}`,
-            bookNumber: book.book_number,
+            id: book.id,
+            allocationNumber: book.allocation_number,
             title: book.title,
             subject: book.subject,
-            condition: book.condition,
-            conditionIssued: book.condition_issued,
-            conditionReturned: book.condition_returned,
-            dateIssued: book.issued_at,
+            grade: book.grade,
+            dateAllocated: book.allocated_at,
             dateReturned: book.returned_at,
-            status,
-            lostAt: book.lost_at,
-            feeAmount: book.fee_amount,
-            feeStatus: book.fee_status,
+            status: book.returned_at ? 'returned' : 'issued',
           }
         }))
         setLoadState('ready')
@@ -183,7 +125,7 @@ export default function StudentDashboard() {
 
   const filteredBooks = textbooks.filter(book => {
     const matchesSearch =
-      `${book.subject} ${book.title} ${book.bookNumber} ${book.status}`
+      `${book.subject} ${book.title} ${book.allocationNumber} ${book.status}`
         .toLowerCase()
         .includes(search.toLowerCase())
 
@@ -300,7 +242,7 @@ export default function StudentDashboard() {
               My Dashboard
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Keep track of your allocated textbooks, their condition, and return history.
+              Keep track of your textbook allocations and return history.
             </p>
           </div>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm sm:text-sm">
@@ -365,7 +307,7 @@ export default function StudentDashboard() {
               </svg>
               <input
                 type="search"
-                placeholder="Search by subject, title or book number..."
+                placeholder="Search by subject, title or allocation number..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 aria-label="Search textbooks"
@@ -448,38 +390,28 @@ export default function StudentDashboard() {
 
                 <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Book number
+                    Allocation number
                   </span>
                   <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-semibold text-slate-700">
-                    {book.bookNumber || 'Not recorded'}
+                    {book.allocationNumber}
                   </span>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-5">
+                <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="min-w-0">
                     <dt className="mb-2 text-xs font-semibold text-slate-500">
-                      Textbook condition
-                    </dt>
-                    <dd><ConditionBadge condition={book.condition} /></dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="mb-2 text-xs font-semibold text-slate-500">
-                      Condition when issued
-                    </dt>
-                    <dd><ConditionBadge condition={book.conditionIssued} /></dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="mb-2 text-xs font-semibold text-slate-500">
-                      Condition when returned
-                    </dt>
-                    <dd><ConditionBadge condition={book.conditionReturned} /></dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="mb-2 text-xs font-semibold text-slate-500">
-                      Date issued
+                      Grade
                     </dt>
                     <dd className="text-sm font-semibold text-slate-800">
-                      {formatDate(book.dateIssued)}
+                      {book.grade}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="mb-2 text-xs font-semibold text-slate-500">
+                      Date allocated
+                    </dt>
+                    <dd className="text-sm font-semibold text-slate-800">
+                      {formatDate(book.dateAllocated)}
                     </dd>
                   </div>
                   <div className="min-w-0">
@@ -491,41 +423,6 @@ export default function StudentDashboard() {
                     </dd>
                   </div>
                 </dl>
-
-                {(book.lostAt || book.feeAmount !== null && book.feeAmount !== undefined || book.feeStatus) && (
-                  <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {book.lostAt && (
-                      <div>
-                        <dt className="mb-2 text-xs font-semibold text-slate-500">
-                          Date reported lost
-                        </dt>
-                        <dd className="text-sm font-semibold text-slate-800">
-                          {formatDate(book.lostAt)}
-                        </dd>
-                      </div>
-                    )}
-                    {(book.feeAmount !== null && book.feeAmount !== undefined) && (
-                      <div>
-                        <dt className="mb-2 text-xs font-semibold text-slate-500">
-                          Fee amount
-                        </dt>
-                        <dd className="text-sm font-semibold text-slate-800">
-                          {formatCurrency(book.feeAmount)}
-                        </dd>
-                      </div>
-                    )}
-                    {book.feeStatus && (
-                      <div>
-                        <dt className="mb-2 text-xs font-semibold text-slate-500">
-                          Fee status
-                        </dt>
-                        <dd className="text-sm font-semibold capitalize text-slate-800">
-                          {book.feeStatus}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
               </article>
             ))}
           </div>
@@ -537,7 +434,7 @@ export default function StudentDashboard() {
             <path d="M12 11v5m0-8h.01" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
           </svg>
           <p className="text-sm leading-6 text-blue-900">
-            Textbook conditions, allocation dates and return statuses are managed by authorized school staff. Contact your teacher if any information is incorrect.
+            Allocation records and return dates are managed by authorized school staff. Contact your teacher if any information is incorrect.
           </p>
         </aside>
 
