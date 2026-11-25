@@ -20,8 +20,9 @@ export default function App() {
       {/* Keep admin routes together so one layout protects the whole section. */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminOverview />} />
-        <Route path="learners" element={<AdminDash />} />
-        <Route path="learners/:learnerId" element={<AdminDash />} />
+        <Route path="learners" element={<AdminDash view="learners" />} />
+        <Route path="learners/:learnerId" element={<AdminDash view="learners" />} />
+        <Route path="grades" element={<AdminDash view="grades" />} />
         <Route
           path="textbooks"
           element={<AdminDataPage key="textbooks" pageKey="textbooks" />}

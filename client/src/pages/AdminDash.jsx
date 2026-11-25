@@ -4,8 +4,10 @@ import LearnerForm from '../components/LearnerForm'
 import LearnerList from '../components/LearnerList'
 import TextbookForm from '../components/TextbookForm'
 import { apiFetch } from '../api'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import LearnerDetailPage from './LearnerDetailPage'
+
+const grades = [8, 9, 10, 11, 12]
 
 async function fetchDashboardData() {
   const [learnerResult, allocationResult] = await Promise.all([
@@ -37,7 +39,7 @@ async function fetchDashboardData() {
   }
 }
 
-function LearnerLoadingState() {
+function LearnerLoadingState({ title }) {
   return (
     <div
       className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
@@ -48,7 +50,7 @@ function LearnerLoadingState() {
           aria-hidden="true"
           className="h-4 w-4 animate-spin rounded-full border-2 border-blue-700 border-t-transparent"
         />
-        Fetching learners...
+        Fetching {title.toLowerCase()}...
       </div>
       <div
         className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
@@ -78,9 +80,17 @@ function LearnerLoadingState() {
 }
 
 // Load and manage learners and their textbook allocations through the admin API.
-export default function AdminDashboard() {
+export default function AdminDashboard({ view = 'learners' }) {
   const { learnerId } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedGradeParam = searchParams.get('grade')
+  const selectedGrade = grades.includes(Number(selectedGradeParam))
+    ? Number(selectedGradeParam)
+    : null
+  const searchTerm = searchParams.get('q') || ''
+  const queryString = searchParams.toString()
+  const backTo = `/admin/learners${queryString ? `?${queryString}` : ''}`
   const [learners, setLearners] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -184,7 +194,7 @@ export default function AdminDashboard() {
 
       setPendingAction(null)
       if (pendingAction.type === 'learner') {
-        navigate('/admin/learners')
+        navigate(backTo)
       }
       setLoading(true)
       await loadDashboard()
@@ -196,6 +206,25 @@ export default function AdminDashboard() {
   }
 
   const selectedLearner = learners.find((learner) => learner.id === learnerId)
+  const gradeLearners = selectedGrade
+    ? learners.filter((learner) => learner.grade === selectedGrade)
+    : []
+  const filteredLearners = gradeLearners.filter((learner) =>
+    learner.name.toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase()),
+  )
+
+  function selectGrade(grade) {
+    setSearchParams({ grade: String(grade) })
+  }
+
+  function updateSearch(value) {
+    const nextParams = new URLSearchParams(searchParams)
+    if (value) nextParams.set('q', value)
+    else nextParams.delete('q')
+    setSearchParams(nextParams, { replace: true })
+  }
+
+  const pageTitle = view === 'grades' ? 'Grades' : 'Learners'
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -203,9 +232,15 @@ export default function AdminDashboard() {
         {!learnerId && (
           <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Admin dashboard</h1>
+              <h1 className="text-2xl font-bold text-slate-900">
+                {selectedGrade ? `Grade ${selectedGrade} learners` : pageTitle}
+              </h1>
               <p className="mt-1 text-sm text-slate-600">
-                New learner accounts can sign up through the learner portal.
+                {selectedGrade
+                  ? `Showing learners in Grade ${selectedGrade}.`
+                  : view === 'grades'
+                    ? 'Choose a grade to view its learners.'
+                    : 'Choose a grade to browse and manage its learners.'}
               </p>
             </div>
           </header>
@@ -218,7 +253,7 @@ export default function AdminDashboard() {
         )}
 
         {loading ? (
-          <LearnerLoadingState />
+          <LearnerLoadingState title={pageTitle} />
         ) : loadError ? (
           <div className="rounded-xl border border-red-200 bg-white p-6" role="alert">
             <p className="text-sm text-red-700">{loadError}</p>
@@ -237,7 +272,7 @@ export default function AdminDashboard() {
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <p className="text-slate-700">Learner not found.</p>
             <Link
-              to="/admin/learners"
+              to={backTo}
               className="mt-3 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
             >
               Back to learners
@@ -246,6 +281,7 @@ export default function AdminDashboard() {
         ) : learnerId ? (
           <LearnerDetailPage
             learner={selectedLearner}
+            backTo={backTo}
             onEditLearner={(learner) =>
               setActiveForm({ type: 'learner', learner })
             }
@@ -282,8 +318,70 @@ export default function AdminDashboard() {
               })
             }}
           />
+        ) : selectedGrade ? (
+          <>
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <Link
+                to={view === 'grades' ? '/admin/grades' : '/admin/learners'}
+                className="text-sm font-medium text-blue-700 hover:text-blue-800"
+              >
+                &larr; Back to grades
+              </Link>
+              <div className="w-full sm:max-w-sm">
+                <label
+                  htmlFor="learner-name-search"
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                >
+                  Search learners by name
+                </label>
+                <input
+                  id="learner-name-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => updateSearch(event.target.value)}
+                  placeholder="Search names..."
+                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </div>
+            {gradeLearners.length === 0 ? (
+              <p className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
+                There are no learners in Grade {selectedGrade} yet.
+              </p>
+            ) : filteredLearners.length === 0 ? (
+              <p className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
+                No learners match “{searchTerm.trim()}” in Grade {selectedGrade}.
+              </p>
+            ) : (
+              <LearnerList learners={filteredLearners} search={queryString} />
+            )}
+          </>
         ) : (
-          <LearnerList learners={learners} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {grades.map((grade) => {
+              const count = learners.filter((learner) => learner.grade === grade).length
+              return (
+                <button
+                  key={grade}
+                  type="button"
+                  onClick={() => selectGrade(grade)}
+                  className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-semibold text-slate-900">Grade {grade}</h2>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+                      {count} {count === 1 ? 'learner' : 'learners'}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {count === 0
+                      ? 'There are no learners in this grade yet.'
+                      : 'View and manage learners'}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
         )}
       </div>
 

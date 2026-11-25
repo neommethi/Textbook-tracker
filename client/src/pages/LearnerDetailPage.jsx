@@ -5,6 +5,7 @@ import TextbookRow from '../components/TextbookRow'
 
 export default function LearnerDetailPage({
   learner,
+  backTo = '/admin/learners',
   onEditLearner,
   onDeleteLearner,
   onAddTextbook,
@@ -18,7 +19,7 @@ export default function LearnerDetailPage({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
-            to="/admin/learners"
+            to={backTo}
             className="text-sm font-medium text-blue-700 hover:text-blue-800"
           >
             &larr; Back to learners

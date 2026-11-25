@@ -48,7 +48,7 @@ const pages = {
             ? '—'
             : `Grade ${allocation.textbook.grade}`,
       },
-      { label: 'Learner ID', render: (allocation) => allocation.learner_id },
+      { label: 'Learner', render: (allocation) => allocation.learner_name ?? 'Unknown learner' },
       {
         label: 'Allocated',
         render: (allocation) => formatDate(allocation.allocated_at),
@@ -119,7 +119,7 @@ export default function AdminDataPage({ pageKey }) {
         }
 
         let rowsWithLearnerNames = data
-        if (pageKey === 'returned') {
+        if (pageKey === 'issued' || pageKey === 'returned') {
           const learnerResponse = await apiFetch('/api/admin/learners')
           if (!Array.isArray(learnerResponse.learners)) {
             throw new Error('The server returned an invalid learners list.')
