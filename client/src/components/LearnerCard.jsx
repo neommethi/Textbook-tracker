@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 
 // Keep roster cards a consistent size; full allocation details live on the learner page.
-export default function LearnerCard({ learner }) {
+export default function LearnerCard({ learner, search = '' }) {
   const previewBooks = learner.textbooks.slice(0, 2)
+  const detailPath = `/admin/learners/${encodeURIComponent(learner.id)}${search ? `?${search}` : ''}`
 
   return (
     <Link
-      to={`/admin/learners/${encodeURIComponent(learner.id)}`}
+      to={detailPath}
       className="block h-72 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
       aria-label={`View ${learner.name}'s books`}
     >
