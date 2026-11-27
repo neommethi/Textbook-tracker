@@ -1,27 +1,20 @@
 // Show an allocation's number and textbook details with its management actions.
-export default function TextbookRow({
-  textbook,
-  showActions = false,
-  onEdit,
-  onReturn,
-}) {
-  const statusStyles = textbook.returned
-    ? 'bg-blue-100 text-blue-800'
-    : 'bg-red-100 text-red-800'
+export default function TextbookRow({ textbook }) {
+  const statusStyles = 'bg-blue-400/10 text-blue-300'
 
   return (
-    <li className="flex flex-col gap-3 border-t border-slate-100 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 border-t border-slate-700 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="truncate font-mono text-xs text-slate-500">
-          Allocation {textbook.allocationNumber}
+          Allocation <span className="text-blue-300">{textbook.allocationNumber}</span>
         </p>
-        <p className="truncate text-sm font-medium text-slate-800">
+        <p className="truncate text-sm font-medium text-slate-200">
           {textbook.title}
         </p>
-        <p className="truncate text-sm text-slate-600">
+        <p className="truncate text-sm text-slate-400">
           {textbook.subject}
         </p>
-        <p className="truncate text-sm text-slate-600">
+        <p className="truncate text-sm text-blue-300">
           Grade {textbook.grade}
         </p>
       </div>
@@ -31,26 +24,6 @@ export default function TextbookRow({
         >
           {textbook.returned ? 'Returned' : 'Outstanding'}
         </span>
-        {showActions && (
-          <div className="flex gap-2">
-            <button
-              className="min-h-9 rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={onEdit}
-              type="button"
-            >
-              Edit
-            </button>
-            {!textbook.returned && (
-              <button
-                className="min-h-9 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                onClick={onReturn}
-                type="button"
-              >
-                Return
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </li>
   )

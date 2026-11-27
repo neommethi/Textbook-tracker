@@ -63,25 +63,39 @@ const navigationItems = [
       </>
     ),
   },
+  {
+    label: 'Settings',
+    to: '/admin/settings',
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a7.8 7.8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a7.8 7.8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a7.5 7.5 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a7.8 7.8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a7.8 7.8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a7.5 7.5 0 0 1 0 2Z" />
+      </>
+    ),
+  },
 ]
 
 export default function Sidebar({
   adminName,
   drawerOpen,
+  expanded,
+  pinned,
+  onExpand,
+  onCollapse,
+  onTogglePin,
   onNavigate,
   onLogout,
 }) {
+  const isExpanded = expanded || drawerOpen
+
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform duration-200 md:translate-x-0 ${
-        drawerOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      onMouseEnter={onExpand}
+      onMouseLeave={onCollapse}
+      className={`fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-slate-800/70 bg-[#17191d] px-3 py-5 text-slate-300 transition-[width,transform] duration-200 md:translate-x-0 ${
+        expanded ? 'md:w-56' : 'md:w-[76px]'
+      } ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      <div className="mb-8 px-3">
-        <p className="text-lg font-bold text-slate-900">Textbook Tracker</p>
-        <p className="mt-1 text-sm text-slate-500">Admin area</p>
-      </div>
-
       <nav aria-label="Admin navigation" className="space-y-1">
         {navigationItems.map((item) => (
           <NavLink
@@ -89,11 +103,14 @@ export default function Sidebar({
             to={item.to}
             end={item.to === '/admin'}
             onClick={onNavigate}
+            aria-label={item.label}
             className={({ isActive }) =>
-              `flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${
+              `group flex min-h-11 items-center rounded-lg text-[13px] font-medium transition-colors ${
+                isExpanded ? 'gap-3 px-3' : 'justify-center px-0 md:gap-0 md:px-0'
+              } ${
                 isActive
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-[#25283a] text-blue-400'
+                  : 'text-slate-300 hover:bg-white/[0.055] hover:text-white'
               }`
             }
           >
@@ -109,21 +126,59 @@ export default function Sidebar({
             >
               {item.icon}
             </svg>
-            <span>{item.label}</span>
+            <span
+              className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-150 ${
+                isExpanded
+                  ? 'max-w-40 opacity-100 delay-100'
+                  : 'max-w-0 opacity-0 delay-0'
+              }`}
+            >
+              {item.label}
+            </span>
+            {isExpanded && item.to !== '/admin' && (
+              <svg aria-hidden="true" className="ml-auto h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto border-t border-slate-200 pt-4">
-        <p className="truncate px-3 pb-2 text-sm font-medium text-slate-700">
-          {adminName}
-        </p>
+      <div className="mt-auto border-t border-slate-800 pt-4">
+        {isExpanded && (
+          <p className="truncate px-3 pb-2 text-sm font-medium text-slate-300">
+            {adminName}
+          </p>
+        )}
+        {isExpanded && (
+          <button
+            type="button"
+            onClick={onTogglePin}
+            aria-label={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+            aria-pressed={pinned}
+            title={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+            className={`mb-1 flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium transition-colors hover:bg-white/[0.055] ${
+              pinned ? 'text-blue-300' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <svg aria-hidden="true" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24">
+              <path d="m16 3 5 5-4 1-4 4 3 3-2 2-3-3-5 5-1-1 5-5-3-3 2-2 3 3 4-4z" />
+            </svg>
+            <span className="whitespace-nowrap">{pinned ? 'Pinned open' : 'Pin sidebar'}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onLogout}
-          className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          aria-label="Log out"
+          className={`flex min-h-11 w-full items-center rounded-lg text-sm font-medium text-slate-400 hover:bg-white/[0.055] hover:text-white ${
+            isExpanded ? 'gap-3 px-3 text-left' : 'justify-center px-0'
+          }`}
         >
-          Log out
+          <svg aria-hidden="true" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24">
+            <path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
+          </svg>
+          {isExpanded && <span className="whitespace-nowrap">Log out</span>}
         </button>
       </div>
     </aside>

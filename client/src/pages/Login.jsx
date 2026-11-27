@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiUrl } from '../api'
 
 export default function Login() {
   const navigate = useNavigate()
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,7 +14,7 @@ export default function Login() {
     setError('')
 
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -35,7 +35,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="auth-page min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm bg-white rounded-xl shadow p-6">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
         <p className="text-sm text-gray-600 mt-1">

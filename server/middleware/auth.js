@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
+import { supabase } from '../supabase.js'
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : null
 
@@ -8,11 +9,35 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Please log in.' })
   }
 
+  let payload
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET)
-    next()
+    payload = jwt.verify(token, process.env.JWT_SECRET)
   } catch {
-    res.status(401).json({ error: 'Session expired or invalid. Please log in again.' })
+    return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' })
+  }
+  if (!payload || typeof payload !== 'object' || typeof payload.id !== 'string') {
+    return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' })
+  }
+
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', payload.id)
+      .maybeSingle()
+    if (error) {
+      console.error('Session account lookup failed:', error)
+      return res.status(500).json({ error: 'Could not verify the account session.' })
+    }
+    if (!user) {
+      return res.status(401).json({ error: 'Account no longer exists. Please log in again.' })
+    }
+
+    req.user = { id: user.id, role: user.role }
+    return next()
+  } catch (error) {
+    console.error('Session account lookup failed:', error)
+    return res.status(500).json({ error: 'Could not verify the account session.' })
   }
 }
 
