@@ -6,74 +6,37 @@ const adminNavigationItems = [
     label: 'Dashboard',
     to: '/admin',
     end: true,
-    icon: (
-      <>
-        <rect x="3.5" y="3.5" width="7" height="7" rx="1" />
-        <rect x="13.5" y="3.5" width="7" height="7" rx="1" />
-        <rect x="3.5" y="13.5" width="7" height="7" rx="1" />
-        <rect x="13.5" y="13.5" width="7" height="7" rx="1" />
-      </>
-    ),
+    icon: '/admin.svg',
   },
   {
     label: 'Learners',
     to: '/admin/learners',
-    icon: (
-      <>
-        <circle cx="9" cy="8" r="3" />
-        <path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17 14a5 5 0 0 1 3.5 4.8" />
-      </>
-    ),
+    icon: '/learners.svg',
   },
   {
     label: 'Textbooks',
     to: '/admin/textbooks',
-    icon: (
-      <>
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" />
-        <path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8" />
-      </>
-    ),
+    icon: '/textbook-svgrepo-com.svg',
   },
   {
     label: 'Issued books',
     to: '/admin/issued',
-    icon: (
-      <>
-        <path d="M4 4h16v16H4zM8 8h8M8 12h8" />
-        <path d="m8 16 2 2 5-5" />
-      </>
-    ),
+    icon: '/issued%20books-svgrepo-com.svg',
   },
   {
     label: 'Returned books',
     to: '/admin/returned',
-    icon: (
-      <>
-        <path d="M4 5h16v14H4zM8 9h5" />
-        <path d="m9 15 2.5 2.5L17 12" />
-      </>
-    ),
+    icon: '/returned%20books-svgrepo-com.svg',
   },
   {
     label: 'Subjects',
     to: '/admin/subjects',
-    icon: (
-      <>
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" />
-        <path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 11h6" />
-      </>
-    ),
+    icon: '/subjects-svgrepo-com.svg',
   },
   {
     label: 'Settings',
     to: '/admin/settings',
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a7.8 7.8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a7.8 7.8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a7.5 7.5 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a7.8 7.8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a7.8 7.8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a7.5 7.5 0 0 1 0 2Z" />
-      </>
-    ),
+    icon: '/settings.svg',
   },
 ]
 
@@ -94,12 +57,12 @@ function SidebarIcon({ children, className = 'h-5 w-5' }) {
   )
 }
 
+function SidebarAssetIcon({ src, className = 'h-5 w-5' }) {
+  return <img aria-hidden="true" alt="" className={`shrink-0 object-contain ${className}`} src={src} />
+}
+
 function LogoutIcon() {
-  return (
-    <SidebarIcon>
-      <path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
-    </SidebarIcon>
-  )
+  return <SidebarAssetIcon src="/logout.svg" />
 }
 
 function MoreIcon({ expanded }) {
@@ -167,7 +130,7 @@ export default function Sidebar({
                 }`
               }
             >
-              <SidebarIcon className="h-5 w-5 shrink-0">{item.icon}</SidebarIcon>
+              <SidebarAssetIcon className="h-5 w-5" src={item.icon} />
               <span
                 className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-150 ${
                   expanded
@@ -203,9 +166,7 @@ export default function Sidebar({
                 pinned ? 'text-blue-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <SidebarIcon className="h-5 w-5 shrink-0">
-                <path d="m16 3 5 5-4 1-4 4 3 3-2 2-3-3-5 5-1-1 5-5-3-3 2-2 3 3 4-4z" />
-              </SidebarIcon>
+              <SidebarAssetIcon src="/pin-svgrepo-com.svg" />
               <span className="whitespace-nowrap">{pinned ? 'Pinned open' : 'Pin sidebar'}</span>
             </button>
           )}
@@ -249,7 +210,7 @@ export default function Sidebar({
                   }`
                 }
               >
-                <SidebarIcon className="h-5 w-5">{item.icon}</SidebarIcon>
+                <SidebarAssetIcon src={item.icon} />
                 <span className="line-clamp-2">{item.label}</span>
               </NavLink>
             ))}
@@ -282,7 +243,7 @@ export default function Sidebar({
                 }`
               }
             >
-              <SidebarIcon className="h-5 w-5">{item.icon}</SidebarIcon>
+              <SidebarAssetIcon src={item.icon} />
             </NavLink>
           ))}
           {hasOverflow ? (

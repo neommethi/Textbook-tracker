@@ -94,9 +94,7 @@ export default function StudentSettingsPage() {
         <section className="flex min-h-[calc(100vh-3.5rem)] flex-col px-4 py-6 text-white sm:px-6 sm:py-8 md:min-h-screen lg:px-8">
           <div className="flex w-full flex-1 flex-col">
             <div className="mb-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
-                Student account
-              </p>
+              
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Settings</h1>
               <p className="mt-2 text-sm text-slate-400">
                 Update your name, grade, or class details.

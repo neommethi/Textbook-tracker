@@ -47,20 +47,14 @@ export default function StudentTextbooksPage() {
       {loadState !== 'loading' && (
         <section className="min-h-screen px-4 py-6 text-white sm:px-6 sm:py-8 lg:px-8">
           <div className="mx-auto w-full max-w-[1500px]">
-        <header className="mb-6 flex flex-col gap-4 rounded-xl border border-slate-800 bg-[#1a1d24] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
-              Your collection
-            </p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Textbook showroom</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-400">
-              Browse your assigned textbooks and add a picture to each book in a future update.
+              A special place for all your Textbooks.
             </p>
           </div>
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-700 bg-[#20232b] px-3 py-2 text-xs font-semibold text-slate-300">
-            <span className="h-2 w-2 rounded-full bg-blue-400" aria-hidden="true" />
-            {loadState === 'ready' ? `${textbooks.length} ${textbooks.length === 1 ? 'book' : 'books'}` : 'My textbooks'}
-          </div>
+
         </header>
 
         <div className="mb-5 rounded-xl border border-slate-800 bg-[#1a1d24] p-4 sm:p-5">
