@@ -10,7 +10,6 @@ import AdminLayout from './layouts/AdminLayout'
 import StudentLayout from './layouts/StudentLayout'
 import AdminOverview from './pages/AdminOverview'
 import SettingsPage from './pages/SettingsPage'
-import { ThemeProvider } from './components/ThemeToggle'
 
 function AppRoutes() {
   return (
@@ -52,9 +51,5 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <AppRoutes />
-    </ThemeProvider>
-  )
+  return <AppRoutes />
 }

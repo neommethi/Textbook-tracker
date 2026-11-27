@@ -1,42 +1,51 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import adminIcon from '../assets/admin.svg'
+import issuedBooksIcon from '../assets/issued books-svgrepo-com.svg'
+import learnersIcon from '../assets/learners.svg'
+import logoutIcon from '../assets/logout.svg'
+import pinIcon from '../assets/pin-svgrepo-com.svg'
+import returnedBooksIcon from '../assets/returned books-svgrepo-com.svg'
+import settingsIcon from '../assets/settings.svg'
+import subjectsIcon from '../assets/subjects-svgrepo-com.svg'
+import textbookIcon from '../assets/textbook-svgrepo-com.svg'
 
 const adminNavigationItems = [
   {
     label: 'Dashboard',
     to: '/admin',
     end: true,
-    icon: '/admin.svg',
+    icon: adminIcon,
   },
   {
     label: 'Learners',
     to: '/admin/learners',
-    icon: '/learners.svg',
+    icon: learnersIcon,
   },
   {
     label: 'Textbooks',
     to: '/admin/textbooks',
-    icon: '/textbook-svgrepo-com.svg',
+    icon: textbookIcon,
   },
   {
     label: 'Issued books',
     to: '/admin/issued',
-    icon: '/issued%20books-svgrepo-com.svg',
+    icon: issuedBooksIcon,
   },
   {
     label: 'Returned books',
     to: '/admin/returned',
-    icon: '/returned%20books-svgrepo-com.svg',
+    icon: returnedBooksIcon,
   },
   {
     label: 'Subjects',
     to: '/admin/subjects',
-    icon: '/subjects-svgrepo-com.svg',
+    icon: subjectsIcon,
   },
   {
     label: 'Settings',
     to: '/admin/settings',
-    icon: '/settings.svg',
+    icon: settingsIcon,
   },
 ]
 
@@ -62,7 +71,7 @@ function SidebarAssetIcon({ src, className = 'h-5 w-5' }) {
 }
 
 function LogoutIcon() {
-  return <SidebarAssetIcon src="/logout.svg" />
+  return <SidebarAssetIcon src={logoutIcon} />
 }
 
 function MoreIcon({ expanded }) {
@@ -166,7 +175,7 @@ export default function Sidebar({
                 pinned ? 'text-blue-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <SidebarAssetIcon src="/pin-svgrepo-com.svg" />
+              <SidebarAssetIcon src={pinIcon} />
               <span className="whitespace-nowrap">{pinned ? 'Pinned open' : 'Pin sidebar'}</span>
             </button>
           )}

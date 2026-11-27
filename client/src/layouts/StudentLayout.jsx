@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useNavigate } from 'react-router-dom'
+import adminIcon from '../assets/admin.svg'
+import settingsIcon from '../assets/settings.svg'
+import textbookIcon from '../assets/textbook-svgrepo-com.svg'
 import Sidebar from '../components/Sidebar'
 
 const studentNavigationItems = [
@@ -7,17 +10,17 @@ const studentNavigationItems = [
     label: 'Home',
     to: '/student-dashboard',
     end: true,
-    icon: '/admin.svg',
+    icon: adminIcon,
   },
   {
     label: 'My Textbooks',
     to: '/student-dashboard/textbooks',
-    icon: '/textbook-svgrepo-com.svg',
+    icon: textbookIcon,
   },
   {
     label: 'Settings',
     to: '/student-dashboard/settings',
-    icon: '/settings.svg',
+    icon: settingsIcon,
   },
 ]
 
