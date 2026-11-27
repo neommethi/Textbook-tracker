@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiUrl } from '../api'
 
 export default function Signup() {
   const navigate = useNavigate()
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -27,7 +27,7 @@ export default function Signup() {
     setError('')
 
     try {
-      const res = await fetch(`${API}/api/auth/signup`, {
+      const res = await fetch(apiUrl('/api/auth/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, grade, class: classGroup }),

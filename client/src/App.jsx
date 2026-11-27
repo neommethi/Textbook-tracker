@@ -11,6 +11,10 @@ import { ThemeProvider, ThemeToggle } from './components/ThemeToggle'
 
 function AppRoutes() {
   const { pathname } = useLocation()
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/'
+  const isStudentDashboard = normalizedPath === '/student-dashboard'
+  const isAdminSection =
+    normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')
   return (
     <>
       <Routes>
@@ -46,7 +50,9 @@ function AppRoutes() {
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      {pathname !== '/student-dashboard' && <ThemeToggle />}
+      {!isStudentDashboard && (!isAdminSection || normalizedPath === '/admin') && (
+        <ThemeToggle />
+      )}
     </>
   )
 }

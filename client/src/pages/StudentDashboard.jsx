@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
-
-const API = 'http://localhost:3000'
+import { apiUrl } from '../api'
 
 function formatDate(date) {
   if (!date) return 'Not recorded'
@@ -71,7 +70,7 @@ export default function StudentDashboard() {
       setLoadError('')
 
       try {
-        const response = await fetch(`${API}/api/learner/me/textbooks`, {
+        const response = await fetch(apiUrl('/api/learner/me/textbooks'), {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         })
