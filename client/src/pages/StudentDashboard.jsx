@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 const API = 'http://localhost:3000'
 
@@ -191,10 +192,10 @@ export default function StudentDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="student-dashboard min-h-screen bg-slate-50">
 
       <header className="border-b border-slate-200/80 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm shadow-blue-900/15">
               <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-6 w-6">
@@ -212,14 +213,16 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <nav aria-label="Student navigation" className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <nav aria-label="Student navigation" className="flex shrink-0 items-center gap-1 sm:gap-3">
             <Link
               to="/student-dashboard"
               aria-current="page"
-              className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:px-4"
+              className="hidden rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:inline-flex sm:px-4"
             >
               Dashboard
             </Link>
+
+            <ThemeToggle compact />
 
             <button
               type="button"

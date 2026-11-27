@@ -124,21 +124,21 @@ export default function TextbookForm({
       <section
         aria-labelledby="textbook-form-title"
         aria-modal="true"
-        className="my-auto w-full max-w-md rounded-xl bg-white p-5 shadow-xl sm:p-6"
+        className="admin-blue-shadow my-auto w-full max-w-md rounded-xl border border-slate-700 bg-[#1a1d24] p-5 text-white sm:p-6"
         role="dialog"
       >
-        <h2 id="textbook-form-title" className="text-xl font-semibold text-slate-900">
+        <h2 id="textbook-form-title" className="text-xl font-semibold text-white">
           {textbook ? 'Edit textbook' : 'Add textbook to learner'}
         </h2>
         <form className="mt-5 space-y-4" onSubmit={handleSubmit} noValidate>
           {textbook ? (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-title">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="textbook-title">
                   Title
                 </label>
                 <input
-                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#111318] px-3 py-2 text-base text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   id="textbook-title"
                   onChange={(event) => setTitle(event.target.value)}
                   required
@@ -147,11 +147,11 @@ export default function TextbookForm({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-subject">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="textbook-subject">
                   Subject
                 </label>
                 <input
-                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#111318] px-3 py-2 text-base text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   id="textbook-subject"
                   onChange={(event) => setSubject(event.target.value)}
                   required
@@ -160,11 +160,11 @@ export default function TextbookForm({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-grade">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="textbook-grade">
                   Grade
                 </label>
                 <input
-                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#111318] px-3 py-2 text-base text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   id="textbook-grade"
                   max="12"
                   min="8"
@@ -178,22 +178,22 @@ export default function TextbookForm({
           ) : (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="learner-name">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="learner-name">
                   Learner
                 </label>
                 <input
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-base text-slate-700"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#20232b] px-3 py-2 text-base text-slate-300"
                   id="learner-name"
                   readOnly
                   value={learner.name}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-subject">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="textbook-subject">
                   Subject
                 </label>
                 <select
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-slate-100"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#111318] px-3 py-2 text-base text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-[#20232b]"
                   disabled={initialLoading || Boolean(initialError) || saving}
                   id="textbook-subject"
                   onChange={handleSubjectChange}
@@ -208,10 +208,10 @@ export default function TextbookForm({
                 </select>
               </div>
               {hasGrade && (
-                <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700">
+                <label className="flex min-h-11 items-center gap-3 text-sm text-slate-300">
                   <input
                     checked={showOtherGrades}
-                    className="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
+                    className="h-5 w-5 rounded border-slate-600 bg-[#111318] text-blue-500 focus:ring-blue-500"
                     disabled={initialLoading || Boolean(initialError) || saving}
                     onChange={handleOtherGradesChange}
                     type="checkbox"
@@ -220,11 +220,11 @@ export default function TextbookForm({
                 </label>
               )}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="textbook-select">
+                <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="textbook-select">
                   Textbook
                 </label>
                 <select
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-slate-100"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#111318] px-3 py-2 text-base text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-[#20232b]"
                   disabled={!subject || initialLoading || Boolean(loadError) || saving}
                   id="textbook-select"
                   onChange={handleBookChange}
@@ -240,13 +240,13 @@ export default function TextbookForm({
                   ))}
                 </select>
                 {subject && !initialLoading && !loadError && matchingBooks.length === 0 && (
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-slate-400">
                     No textbooks found for this subject.
                   </p>
                 )}
               </div>
               {selectedBook && (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-400">
                   Selected textbook: {selectedBook.title}, Grade {selectedBook.grade}.
                 </p>
               )}
@@ -254,18 +254,18 @@ export default function TextbookForm({
           )}
 
           {loadError && (
-            <p className="text-sm text-red-700" role="alert">
+            <p className="text-sm text-red-300" role="alert">
               {loadError}
             </p>
           )}
           {submitError && (
-            <p className="text-sm text-red-700" role="alert">
+            <p className="text-sm text-red-300" role="alert">
               {submitError}
             </p>
           )}
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <button
-              className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
+              className="min-h-11 rounded-lg border border-slate-700 px-4 py-2 font-medium text-slate-300 hover:bg-white/5"
               disabled={saving}
               onClick={onCancel}
               type="button"
@@ -273,7 +273,7 @@ export default function TextbookForm({
               Cancel
             </button>
             <button
-              className="min-h-11 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={
                 saving ||
                 (!textbook && (initialLoading || !selectedBook || Boolean(loadError)))

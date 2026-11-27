@@ -25,6 +25,18 @@ export async function apiFetch(path, { method = 'GET', body, ...options } = {}) 
   }
 
   const data = await response.json()
+  if (response.status === 403 && data.error === 'Admins only.') {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (user) {
+        localStorage.setItem('user', JSON.stringify({ ...user, role: 'user' }))
+        window.location.assign('/student-dashboard')
+      }
+    } catch {
+      localStorage.removeItem('user')
+      window.location.assign('/login')
+    }
+  }
   if (!response.ok) {
     throw new Error(data.error || `Request failed with status ${response.status}.`)
   }

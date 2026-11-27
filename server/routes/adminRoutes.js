@@ -23,6 +23,7 @@ function fail(res, error) {
 const textbookFields = ['title', 'subject', 'grade']
 const learnerFields = ['name', 'grade', 'class']
 const learnerColumns = 'id, name, email, grade, class, created_at'
+const accountColumns = 'id, name, email, role, grade, class, created_at'
 const allocationSelect = 'id, allocation_number, textbook_id, learner_id, allocated_at, returned_at, textbook:textbooks!textbook_allocations_textbook_id_fkey(title, subject, grade)'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -105,6 +106,57 @@ function parseLearnerUpdate(input) {
   return { data: updates }
 }
 
+function parseAccountUpdate(input) {
+  const fields = ['name', 'email', 'grade', 'class']
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { error: 'Request body must be an object.' }
+  }
+
+  const unknownFields = Object.keys(input).filter((field) => !fields.includes(field))
+  if (unknownFields.length) {
+    return { error: `Unsupported field: ${unknownFields[0]}.` }
+  }
+
+  const updates = {}
+  if (Object.hasOwn(input, 'name')) {
+    if (typeof input.name !== 'string' || !input.name.trim()) {
+      return { error: 'name must be non-empty text.' }
+    }
+    updates.name = input.name.trim()
+  }
+
+  if (Object.hasOwn(input, 'email')) {
+    if (typeof input.email !== 'string') {
+      return { error: 'email must be valid text.' }
+    }
+    const email = input.email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { error: 'email must be a valid email address.' }
+    }
+    updates.email = email
+  }
+
+  if (Object.hasOwn(input, 'grade')) {
+    if (input.grade !== null && (!Number.isInteger(input.grade) || input.grade < 8 || input.grade > 12)) {
+      return { error: 'grade must be an integer from 8 to 12 or null.' }
+    }
+    updates.grade = input.grade
+  }
+
+  if (Object.hasOwn(input, 'class')) {
+    if (input.class !== null && (typeof input.class !== 'string' || !input.class.trim())) {
+      return { error: 'class must be non-empty text or null.' }
+    }
+    updates.class = input.class === null ? null : input.class.trim()
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { error: 'Provide at least one account field to update.' }
+  }
+
+  return { data: updates }
+}
+
 function parseAllocationInput(input) {
   const fields = ['textbook_id', 'learner_id']
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -156,6 +208,160 @@ async function logActivity(actorId, action, entity, entityId, details) {
     console.error('Activity log insert failed:', error)
   }
 }
+
+// List registered accounts without exposing authentication credentials.
+router.get('/accounts', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(accountColumns)
+      .order('name', { ascending: true })
+    if (error) return fail(res, error)
+    return res.json({ accounts: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Update profile fields from the account settings page.
+router.put('/accounts/:id', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+
+  const { data: updates, error: validationError } = parseAccountUpdate(req.body)
+  if (validationError) return res.status(400).json({ error: validationError })
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', id)
+      .select(accountColumns)
+      .maybeSingle()
+    if (error?.code === '23505') {
+      return res.status(409).json({ error: 'An account with that email already exists.' })
+    }
+    if (error) return fail(res, error)
+    if (!data) return res.status(404).json({ error: 'Account not found.' })
+
+    await logActivity(req.user.id, 'update', 'account', id, updates)
+    return res.json({ account: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Change an account role while preventing self-demotion and removal of the final admin.
+router.patch('/accounts/:id/role', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+  if (!req.body || !['admin', 'user'].includes(req.body.role)) {
+    return res.status(400).json({ error: 'role must be admin or user.' })
+  }
+
+  try {
+    const { data: target, error: lookupError } = await supabase
+      .from('users')
+      .select(accountColumns)
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupError) return fail(res, lookupError)
+    if (!target) return res.status(404).json({ error: 'Account not found.' })
+    if (target.role === req.body.role) return res.json({ account: target })
+    if (id === req.user.id) {
+      return res.status(409).json({ error: 'You cannot change your own admin access.' })
+    }
+
+    if (target.role === 'admin' && req.body.role === 'user') {
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
+      if (countError) return fail(res, countError)
+      if (count <= 1) {
+        return res.status(409).json({ error: 'The final admin account cannot be demoted.' })
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ role: req.body.role })
+      .eq('id', id)
+      .select(accountColumns)
+      .maybeSingle()
+    if (error) return fail(res, error)
+    if (!data) return res.status(404).json({ error: 'Account not found.' })
+
+    await logActivity(req.user.id, 'update', 'account_role', id, {
+      role: req.body.role,
+    })
+    return res.json({ account: data })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
+
+// Delete accounts only when no allocation history depends on their learner identity.
+router.delete('/accounts/:id', async (req, res) => {
+  const { id } = req.params
+  if (!uuidPattern.test(id)) return res.status(400).json({ error: 'id must be a valid UUID.' })
+
+  try {
+    const { data: account, error: lookupError } = await supabase
+      .from('users')
+      .select(accountColumns)
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupError) return fail(res, lookupError)
+    if (!account) return res.status(404).json({ error: 'Account not found.' })
+    if (id === req.user.id) {
+      return res.status(409).json({ error: 'You cannot delete your own account.' })
+    }
+
+    if (account.role === 'admin') {
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'admin')
+      if (countError) return fail(res, countError)
+      if (count <= 1) {
+        return res.status(409).json({ error: 'The final admin account cannot be deleted.' })
+      }
+    }
+
+    const { count, error: historyError } = await supabase
+      .from('textbook_allocations')
+      .select('id', { count: 'exact', head: true })
+      .eq('learner_id', id)
+    if (historyError) return fail(res, historyError)
+    if (count > 0) {
+      return res.status(409).json({
+        error: 'Accounts with textbook allocation history cannot be deleted.',
+      })
+    }
+
+    const { data: deleted, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle()
+    if (error?.code === '23503') {
+      return res.status(409).json({ error: 'The account has related records and cannot be deleted.' })
+    }
+    if (error) return fail(res, error)
+    if (!deleted) return res.status(404).json({ error: 'Account not found.' })
+
+    await logActivity(req.user.id, 'delete', 'account', id, {
+      name: account.name,
+      email: account.email,
+      role: account.role,
+    })
+    return res.json({ message: 'Account deleted.' })
+  } catch (error) {
+    return fail(res, error)
+  }
+})
 
 // List textbooks by their current schema fields; no allocation availability filter is applied.
 router.get('/textbooks', async (req, res) => {

@@ -49,7 +49,7 @@ export default function Signup() {
   const labelClass = 'block text-sm font-medium text-slate-700'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
+    <div className="auth-page min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
       <div className="w-full max-w-sm bg-white rounded-xl shadow p-6">
         <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
         <p className="text-sm text-slate-600 mt-1">
@@ -58,7 +58,7 @@ export default function Signup() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="name" className={labelClass}>Full name</label>
+            <label htmlFor="name" className={labelClass}>Full name and surname</label>
             <input id="name" type="text" value={name}
               onChange={(e) => setName(e.target.value)} required className={inputClass} />
           </div>
