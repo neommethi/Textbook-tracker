@@ -1,8 +1,7 @@
 
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ThemeToggle } from '../components/ThemeToggle'
-import { apiUrl } from '../api'
+import { useState } from 'react'
+import { useStudentTextbooks } from '../hooks/useStudentTextbooks'
+import FullScreenLoading from '../components/FullScreenLoading'
 
 function formatDate(date) {
   if (!date) return 'Not recorded'
@@ -47,78 +46,10 @@ function ReturnStatusBadge({ status }) {
 }
 
 export default function StudentDashboard() {
-  const navigate = useNavigate()
+  const { textbooks, loadState, loadError, retry } = useStudentTextbooks()
 
-  const [textbooks, setTextbooks] = useState([])
-  const [loadState, setLoadState] = useState('loading')
-  const [loadError, setLoadError] = useState('')
-  const [retryCount, setRetryCount] = useState(0)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadTextbooks() {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        setLoadState('expired')
-        return
-      }
-
-      setLoadState('loading')
-      setLoadError('')
-
-      try {
-        const response = await fetch(apiUrl('/api/learner/me/textbooks'), {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        })
-
-        if (response.status === 401) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          setLoadState('expired')
-          return
-        }
-
-        let payload
-        try {
-          payload = await response.json()
-        } catch {
-          throw new Error('The server returned an invalid response.')
-        }
-
-        if (!response.ok) {
-          throw new Error(payload.error || 'Unable to load your textbooks.')
-        }
-        if (!Array.isArray(payload.textbooks)) {
-          throw new Error('The server returned an unexpected textbook list.')
-        }
-
-        setTextbooks(payload.textbooks.map((book) => {
-          return {
-            id: book.id,
-            allocationNumber: book.allocation_number,
-            title: book.title,
-            subject: book.subject,
-            grade: book.grade,
-            dateAllocated: book.allocated_at,
-            dateReturned: book.returned_at,
-            status: book.returned_at ? 'returned' : 'issued',
-          }
-        }))
-        setLoadState('ready')
-      } catch (error) {
-        if (error.name === 'AbortError') return
-        setLoadError(error.message || 'Could not reach the server. Please try again.')
-        setLoadState('error')
-      }
-    }
-
-    loadTextbooks()
-    return () => controller.abort()
-  }, [retryCount])
 
   const returned = textbooks.filter(book => book.status === 'returned').length
   const outstanding = textbooks.length - returned
@@ -136,17 +67,6 @@ export default function StudentDashboard() {
 
     return matchesSearch && matchesFilter
   })
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    navigate('/login', { replace: true })
-  }
-
-  const handleRetry = () => {
-    setLoadState('loading')
-    setRetryCount(count => count + 1)
-  }
 
   const stats = [
     {
@@ -191,50 +111,11 @@ export default function StudentDashboard() {
   ]
 
   return (
-    <div className="student-dashboard min-h-screen bg-slate-50">
-
-      <header className="border-b border-slate-200/80 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm shadow-blue-900/15">
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-6 w-6">
-                <path d="M4.75 5.75A2.75 2.75 0 0 1 7.5 3h12v16h-12a2.75 2.75 0 0 0-2.75 2.75v-16Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                <path d="M4.75 19A2.75 2.75 0 0 1 7.5 16.25h12M8.5 7h7M8.5 10h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">
-                Textbook Tracker
-              </h1>
-              <p className="text-xs font-medium text-slate-500 sm:text-sm">
-                Student portal
-              </p>
-            </div>
-          </div>
-
-          <nav aria-label="Student navigation" className="flex shrink-0 items-center gap-1 sm:gap-3">
-            <Link
-              to="/student-dashboard"
-              aria-current="page"
-              className="hidden rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:inline-flex sm:px-4"
-            >
-              Dashboard
-            </Link>
-
-            <ThemeToggle compact />
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:px-4"
-            >
-              Logout
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
+    <>
+      <FullScreenLoading visible={loadState === 'loading'} label="Loading your dashboard..." />
+      {loadState !== 'loading' && (
+        <div className="student-dashboard min-h-screen bg-slate-50">
+          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
         <section className="mb-7 flex flex-col gap-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50 p-5 shadow-sm sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:p-7">
           <div>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
@@ -295,7 +176,7 @@ export default function StudentDashboard() {
               <p className="mt-2 text-xs font-medium text-slate-500 sm:mt-0">
                 {loadState === 'ready'
                   ? `Showing ${filteredBooks.length} of ${textbooks.length} books`
-                  : loadState === 'loading' ? 'Loading your allocation...' : 'Allocation unavailable'}
+                  : 'Allocation unavailable'}
               </p>
             </div>
           </div>
@@ -333,31 +214,13 @@ export default function StudentDashboard() {
           </div>
 
           <div className="space-y-3 p-4 sm:space-y-4 sm:p-5">
-            {loadState === 'loading' ? (
-              <div role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-12 text-center">
-                <span className="mx-auto mb-3 block h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" aria-hidden="true" />
-                <p className="font-semibold text-slate-800">Loading your textbooks</p>
-                <p className="mt-1 text-sm text-slate-500">Please wait while we retrieve your allocation.</p>
-              </div>
-            ) : loadState === 'expired' ? (
-              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center">
-                <p className="font-semibold text-amber-900">Your session has expired</p>
-                <p className="mt-1 text-sm text-amber-800">Please log in again to view your textbooks.</p>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                >
-                  Return to login
-                </button>
-              </div>
-            ) : loadState === 'error' ? (
+            {loadState === 'error' ? (
               <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-10 text-center">
                 <p className="font-semibold text-red-900">We couldn’t load your textbooks</p>
                 <p className="mt-1 text-sm text-red-800">{loadError}</p>
                 <button
                   type="button"
-                  onClick={handleRetry}
+                  onClick={retry}
                   className="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
                   Try again
@@ -440,7 +303,9 @@ export default function StudentDashboard() {
           </p>
         </aside>
 
-      </main>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

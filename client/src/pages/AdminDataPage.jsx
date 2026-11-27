@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import TextbookForm from '../components/TextbookForm'
+import FullScreenLoading from '../components/FullScreenLoading'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -299,6 +300,7 @@ export default function AdminDataPage({ pageKey }) {
   }, new Map())
   return (
     <section className="min-h-screen bg-[#111318] px-4 py-6 text-white sm:px-6 sm:py-8 lg:px-8">
+      <FullScreenLoading visible={loading} label={`Loading ${page.title.toLowerCase()}...`} />
       <div className="mx-auto w-full">
         {!loading && !error && pageKey === 'textbooks' && (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -378,21 +380,7 @@ export default function AdminDataPage({ pageKey }) {
           </div>
         </div>
 
-        {loading ? (
-          <div className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-[#1a1d24]" aria-busy="true">
-            <div className="flex items-center gap-2 px-4 py-4 text-sm text-slate-300" role="status">
-              <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
-              Loading {page.title.toLowerCase()}...
-            </div>
-            {[0, 1, 2].map((row) => (
-              <div key={row} className="flex gap-4 border-t border-slate-800 px-4 py-5">
-                <div className="h-4 w-1/3 animate-pulse rounded bg-slate-700" />
-                <div className="h-4 w-1/5 animate-pulse rounded bg-slate-700" />
-                <div className="h-4 w-1/6 animate-pulse rounded bg-slate-700" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
+        {loading ? null : error ? (
           <div className="mt-5 rounded-xl border border-red-400/30 bg-[#1a1d24] p-6" role="alert">
             <p className="text-sm text-red-300">{error}</p>
             <button type="button" onClick={handleRetry} className="mt-3 min-h-11 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">

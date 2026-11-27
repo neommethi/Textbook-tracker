@@ -11,6 +11,73 @@ function requireLearner(req, res, next) {
   next()
 }
 
+router.get('/me', requireAuth, requireLearner, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, grade, class')
+      .eq('id', req.user.id)
+      .single()
+
+    if (error) {
+      console.error('Failed to retrieve learner profile:', error)
+      return res.status(500).json({ error: 'Unable to retrieve your profile.' })
+    }
+
+    return res.json({ user: data })
+  } catch (error) {
+    console.error('Failed to retrieve learner profile:', error)
+    return res.status(500).json({ error: 'Unable to retrieve your profile.' })
+  }
+})
+
+router.put('/me', requireAuth, requireLearner, async (req, res) => {
+  const input = req.body
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return res.status(400).json({ error: 'Request body must be an object.' })
+  }
+
+  const allowedFields = ['name', 'grade', 'class']
+  const unknownFields = Object.keys(input).filter((field) => !allowedFields.includes(field))
+  if (unknownFields.length) {
+    return res.status(400).json({ error: `Unsupported field: ${unknownFields[0]}.` })
+  }
+
+  const name = typeof input.name === 'string' ? input.name.trim() : ''
+  if (!name) {
+    return res.status(400).json({ error: 'name must be a non-empty string.' })
+  }
+  if (!Number.isInteger(input.grade) || input.grade < 8 || input.grade > 12) {
+    return res.status(400).json({ error: 'grade must be an integer from 8 to 12.' })
+  }
+  if (
+    input.class !== null &&
+    typeof input.class !== 'string'
+  ) {
+    return res.status(400).json({ error: 'class must be a string or null.' })
+  }
+
+  const learnerClass = typeof input.class === 'string' ? input.class.trim() || null : null
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ name, grade: input.grade, class: learnerClass })
+      .eq('id', req.user.id)
+      .select('id, name, email, grade, class')
+      .single()
+
+    if (error) {
+      console.error('Failed to update learner profile:', error)
+      return res.status(500).json({ error: 'Unable to update your profile.' })
+    }
+
+    return res.json({ user: data })
+  } catch (error) {
+    console.error('Failed to update learner profile:', error)
+    return res.status(500).json({ error: 'Unable to update your profile.' })
+  }
+})
+
 router.get('/me/textbooks', requireAuth, requireLearner, async (req, res) => {
   try {
     const { data, error } = await supabase

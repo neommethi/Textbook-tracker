@@ -26,16 +26,14 @@ export function ThemeProvider({ children }) {
   )
 }
 
-export function ThemeToggle({ compact = false }) {
+export function ThemeToggle() {
   const { theme, toggleTheme } = useContext(ThemeContext)
   const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
   return (
     <button
       aria-label={`Switch to ${nextTheme} mode`}
-      className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-        compact ? 'w-11 px-0' : 'fixed right-4 top-4 z-[100] px-3 text-sm'
-      } ${
+      className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
         theme === 'dark'
           ? 'border-slate-700 bg-[#1a1d24] text-slate-200 hover:bg-[#20232b]'
           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -54,7 +52,7 @@ export function ThemeToggle({ compact = false }) {
           <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />
         </svg>
       )}
-      {!compact && (theme === 'dark' ? 'Light mode' : 'Dark mode')}
+      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
     </button>
   )
 }
