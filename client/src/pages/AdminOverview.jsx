@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../api'
+import FullScreenLoading from '../components/FullScreenLoading'
 
 const cards = [
   {
@@ -70,35 +71,6 @@ const cards = [
   },
 ]
 
-function DashboardLoadingState() {
-  return (
-    <div aria-busy="true" className="rounded-xl border border-slate-800 bg-[#1a1d24] p-5">
-      <div className="flex items-center gap-2 text-sm text-slate-300" role="status">
-        <span
-          aria-hidden="true"
-          className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
-        />
-        Loading dashboard summary...
-      </div>
-      <div
-        className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        aria-hidden="true"
-      >
-        {cards.map((card) => (
-          <div
-            key={card.key}
-            className="rounded-lg border border-slate-700/60 bg-[#20232b] p-5"
-          >
-            <div className="h-4 w-28 animate-pulse rounded bg-slate-600" />
-            <div className="mt-5 h-9 w-16 animate-pulse rounded bg-slate-600" />
-            <div className="mt-3 h-4 w-40 animate-pulse rounded bg-slate-600" />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function AdminOverview() {
   const [summary, setSummary] = useState(null)
   const [gradeAllocations, setGradeAllocations] = useState([0, 0, 0, 0, 0])
@@ -160,10 +132,9 @@ export default function AdminOverview() {
 
   return (
     <section className="min-h-screen bg-[#111318] px-4 py-4 text-white sm:px-6 sm:py-6">
+      <FullScreenLoading visible={loading} label="Loading dashboard summary..." />
       <div className="mx-auto w-full">
-        {loading ? (
-          <DashboardLoadingState />
-        ) : error ? (
+        {loading ? null : error ? (
           <div className="rounded-xl border border-red-400/30 bg-[#1a1d24] p-6" role="alert">
             <p className="text-sm text-red-300">{error}</p>
             <button

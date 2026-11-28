@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import FullScreenLoading from '../components/FullScreenLoading'
 import { apiFetch } from '../api'
 
 function formatDate(value) {
@@ -360,6 +361,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen px-4 py-7 text-white sm:px-6 sm:py-9 lg:px-8">
+      <FullScreenLoading visible={loading && !loadError} label="Loading accounts..." />
       <div className="mx-auto w-full max-w-[1500px]">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -371,20 +373,22 @@ export default function SettingsPage() {
               Manage registered accounts, profile details, and administrator access.
             </p>
           </div>
-          <label className="relative block w-full lg:max-w-sm">
-            <span className="sr-only">Search accounts</span>
-            <svg aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-4-4" />
-            </svg>
-            <input
-              className="min-h-11 w-full rounded-xl border border-slate-700 bg-[#1a1d24] pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, email or role..."
-              type="search"
-              value={search}
-            />
-          </label>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+            <label className="relative block w-full sm:min-w-0 sm:flex-1 lg:w-80 lg:flex-none">
+              <span className="sr-only">Search accounts</span>
+              <svg aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
+              <input
+                className="min-h-11 w-full rounded-xl border border-slate-700 bg-[#1a1d24] pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search name, email or role..."
+                type="search"
+                value={search}
+              />
+            </label>
+          </div>
         </div>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -442,11 +446,7 @@ export default function SettingsPage() {
                 Try again
               </button>
             </div>
-          ) : loading ? (
-            <div className="rounded-xl border border-slate-800 bg-[#1a1d24] p-6 text-sm text-slate-400" role="status">
-              Loading accounts...
-            </div>
-          ) : filteredAccounts.length === 0 ? (
+          ) : loading ? null : filteredAccounts.length === 0 ? (
             <div className="rounded-xl border border-slate-800 bg-[#1a1d24] p-10 text-center">
               <p className="font-medium text-slate-200">No accounts found</p>
               <p className="mt-1 text-sm text-slate-500">Try another search term.</p>

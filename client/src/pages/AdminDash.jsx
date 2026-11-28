@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import LearnerList from '../components/LearnerList'
 import TextbookForm from '../components/TextbookForm'
+import FullScreenLoading from '../components/FullScreenLoading'
 import { apiFetch } from '../api'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import LearnerDetailPage from './LearnerDetailPage'
@@ -35,47 +36,6 @@ async function fetchDashboardData() {
       textbooks: allocationsByLearner.get(learner.id) || [],
     })),
   }
-}
-
-function LearnerLoadingState({ title }) {
-  return (
-    <div
-      className="rounded-xl border border-slate-800 bg-[#1a1d24] p-4 text-slate-200 sm:p-5"
-      aria-busy="true"
-    >
-      <div className="flex items-center gap-2 text-sm text-slate-300" role="status">
-        <span
-          aria-hidden="true"
-          className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
-        />
-        Fetching {title.toLowerCase()}...
-      </div>
-      <div
-        className="mt-4 grid grid-cols-1 gap-4"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 18rem), 1fr))' }}
-        aria-hidden="true"
-      >
-        {[0, 1, 2].map((card) => (
-          <div
-            key={card}
-            className="admin-blue-shadow rounded-xl border border-slate-800 bg-[#20232b] p-4 sm:p-5"
-          >
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="h-5 w-32 animate-pulse rounded bg-slate-700" />
-              <div className="h-7 w-20 animate-pulse rounded-full bg-slate-700" />
-            </div>
-            {[0, 1].map((row) => (
-              <div key={row} className="border-t border-slate-700 py-3">
-                <div className="h-3 w-24 animate-pulse rounded bg-slate-700" />
-                <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-slate-700" />
-              </div>
-            ))}
-            <div className="mt-3 h-10 w-20 animate-pulse rounded-lg bg-slate-700" />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 }
 
 // Load and manage learners and their textbook allocations through the admin API.
@@ -177,6 +137,7 @@ export default function AdminDashboard({ view = 'learners' }) {
 
   return (
     <main className="min-h-screen bg-[#111318] px-4 py-8 text-white sm:px-6 lg:px-8">
+      <FullScreenLoading visible={loading} label={`Loading ${pageTitle.toLowerCase()}...`} />
       <div className="mx-auto w-full">
         {!learnerId && !selectedGrade && (
               <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -222,9 +183,7 @@ export default function AdminDashboard({ view = 'learners' }) {
           </p>
         )}
 
-        {loading ? (
-          <LearnerLoadingState title={pageTitle} />
-        ) : loadError ? (
+        {loading ? null : loadError ? (
           <div className="rounded-xl border border-red-400/30 bg-[#1a1d24] p-6" role="alert">
             <p className="text-sm text-red-300">{loadError}</p>
             <button

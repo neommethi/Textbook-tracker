@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
+import FullScreenLoading from './FullScreenLoading'
 
 // Load the full textbook list once; allocations do not make catalog entries unavailable.
 export default function TextbookForm({
@@ -120,7 +121,9 @@ export default function TextbookForm({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
+    <>
+      <FullScreenLoading visible={initialLoading} label="Loading textbooks..." />
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
       <section
         aria-labelledby="textbook-form-title"
         aria-modal="true"
@@ -230,9 +233,7 @@ export default function TextbookForm({
                   onChange={handleBookChange}
                   value={selectedTextbookId}
                 >
-                  <option value="">
-                    {initialLoading ? 'Loading textbooks...' : 'Choose a book'}
-                  </option>
+                  <option value="">Choose a book</option>
                   {matchingBooks.map((book) => (
                     <option key={book.id} value={book.id}>
                       {book.title} (Grade {book.grade})
@@ -285,6 +286,7 @@ export default function TextbookForm({
           </div>
         </form>
       </section>
-    </div>
+      </div>
+    </>
   )
 }
